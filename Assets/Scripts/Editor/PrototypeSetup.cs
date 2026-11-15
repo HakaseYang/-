@@ -514,7 +514,7 @@ namespace QiuQiu.EditorTools
             rb.bodyType = RigidbodyType2D.Dynamic;
             rb.gravityScale = 0f;
             rb.mass = 1f;
-            rb.linearDamping = 0f;
+            rb.linearDamping = BallFactory.DefaultLinearDamping;
             rb.angularDamping = 0f;
             rb.freezeRotation = true;
             rb.interpolation = RigidbodyInterpolation2D.Interpolate;

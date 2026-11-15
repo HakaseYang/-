@@ -41,6 +41,12 @@ namespace QiuQiu
         [Header("按钮")]
         [SerializeField] private Button restartButton;
 
+        [Tooltip("返回主菜单按钮（可留空；留空则不显示返回按钮功能）。")]
+        [SerializeField] private Button backToMenuButton;
+
+        [Tooltip("返回主菜单时加载的场景名。")]
+        [SerializeField] private string mainMenuSceneName = "MainMenu";
+
         [Header("可选：重新开始前倒数（秒）。0 = 立刻重开")]
         [SerializeField] private float restartDelay = 0f;
 
@@ -63,6 +69,12 @@ namespace QiuQiu
                 // 避免一次点击触发两次重载（第二次 LoadScene 会把刚加载好的场景再刷一遍，闪一下）。
                 restartButton.onClick.RemoveListener(Restart);
                 restartButton.onClick.AddListener(Restart);
+            }
+
+            if (backToMenuButton != null && backToMenuButton.onClick.GetPersistentEventCount() == 0)
+            {
+                backToMenuButton.onClick.RemoveListener(BackToMenu);
+                backToMenuButton.onClick.AddListener(BackToMenu);
             }
 
             Hide();   // 默认隐藏
@@ -94,6 +106,9 @@ namespace QiuQiu
             if (titleText != null) titleText.text = "GAME OVER";
             if (peakMassText != null) peakMassText.text = $"本局最高质量：{peak:F0}";
             if (finalRankText != null) finalRankText.text = $"最终排名：第 {rank} 名 / 共 {total} 人";
+
+            // 记录历史最好成绩（主菜单显示用）
+            MainMenuController.ReportBestMass(peak);
 
             panelRoot.SetActive(true);
 
@@ -141,6 +156,29 @@ namespace QiuQiu
             }
 
             SceneManager.LoadScene(index);
+        }
+
+        /// <summary>返回主菜单（按钮 OnClick 与外部都调这个）。</summary>
+        public void BackToMenu()
+        {
+            // 结算时 timeScale = 0，离开前必须复位，否则主菜单是定格的
+            Time.timeScale = 1f;
+            AudioListener.pause = false;
+
+            if (string.IsNullOrEmpty(mainMenuSceneName))
+            {
+                Debug.LogError("[GameOverPanel] mainMenuSceneName 为空，无法返回主菜单");
+                return;
+            }
+
+            if (Application.CanStreamedLevelBeLoaded(mainMenuSceneName))
+            {
+                SceneManager.LoadScene(mainMenuSceneName);
+            }
+            else
+            {
+                Debug.LogError($"[GameOverPanel] 场景 {mainMenuSceneName} 不在 Build Settings 里，请先添加");
+            }
         }
     }
 }

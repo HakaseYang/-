@@ -54,6 +54,9 @@ namespace QiuQiu
         [Tooltip("离主球过远（被撞飞/被边界卡住）时的最大拉力倍率，防止子球掉队太远。")]
         [SerializeField] private float farAwayBoost = 2.5f;
 
+        [Tooltip("漂移死区：期望速度小于这个值、或已经贴近槽位时直接清零速度，避免几厘米/秒的微小漂移。")]
+        [SerializeField] private float driftDeadzone = 0.25f;
+
         private PlayerController leaderController;
         private SizeController self;
         private Rigidbody2D rb;
@@ -102,9 +105,16 @@ namespace QiuQiu
             {
                 // 自己就是主球（或场上只剩自己）：直接响应玩家输入，
                 // 不能走“绕自己转圈”的编队逻辑，否则会自己推自己。
-                Vector2 direct = Vector2.ClampMagnitude(inputVelocity, maxFollowSpeed);
-                rb.linearVelocity = Vector2.MoveTowards(
-                    rb.linearVelocity, direct, followAcceleration * Time.fixedDeltaTime);
+                if (inputVelocity.sqrMagnitude <= 0.0001f)
+                {
+                    rb.linearVelocity = Vector2.zero;   // 硬清零，杜绝残余速度导致的漂移
+                }
+                else
+                {
+                    Vector2 direct = Vector2.ClampMagnitude(inputVelocity, maxFollowSpeed);
+                    rb.linearVelocity = Vector2.MoveTowards(
+                        rb.linearVelocity, direct, followAcceleration * Time.fixedDeltaTime);
+                }
 
                 if (ArenaManager.Instance != null)
                     ArenaManager.Instance.Constrain(rb, self.Radius);
@@ -135,19 +145,47 @@ namespace QiuQiu
 
             // 期望速度 = 玩家输入（主项，保证操控手感）
             //          + 队形校正（限幅，不能盖过输入，否则子球会被编队弹簧拽着乱飘）
-            //          + 主球速度前馈（避免掉队）
+            //          + 主球速度前馈（只在有输入时加，避免把主球的残余速度“继承”下来形成永久漂移）
             Vector2 inputVelocityClamped = Vector2.ClampMagnitude(inputVelocity, speedLimit);
             Vector2 spring = (target - rb.position) * strength;
             float correctionBudget = Mathf.Max(0f, speedLimit - inputVelocityClamped.magnitude);
             Vector2 correction = Vector2.ClampMagnitude(spring, correctionBudget);
 
             Vector2 desired = inputVelocityClamped + correction;
-            var leaderRb = leader.GetComponent<Rigidbody2D>();
-            if (leaderRb != null) desired += leaderRb.linearVelocity * 0.5f;  // 追赶前馈，避免掉队
+
+            bool hasInput = inputVelocity.sqrMagnitude > 0.01f;
+            bool slotSettled = !canMergeNow && (target - rb.position).sqrMagnitude < driftDeadzone * driftDeadzone;
+
+            if (hasInput || canMergeNow)
+            {
+                var leaderRb = leader.GetComponent<Rigidbody2D>();
+                if (leaderRb != null) desired += leaderRb.linearVelocity * 0.5f;   // 追赶前馈，避免掉队
+            }
+
             desired = Vector2.ClampMagnitude(desired, speedLimit);
 
-            rb.linearVelocity = Vector2.MoveTowards(
-                rb.linearVelocity, desired, followAcceleration * Time.fixedDeltaTime);
+            // 已经在槽位上、也没有输入：直接停住。
+            // 不加这一条的话，弹簧残差 + 前馈会让子球带着几厘米/秒的速度慢慢漂（Y 轴最明显），
+            // 而 0.1 这种量级的速度在阻尼为 0 的刚体上永远不会自然衰减。
+            if (slotSettled && !hasInput)
+            {
+                rb.linearVelocity = Vector2.zero;
+
+                if (ArenaManager.Instance != null)
+                    ArenaManager.Instance.Constrain(rb, self.Radius);
+
+                return;
+            }
+
+            if (desired.sqrMagnitude < driftDeadzone * driftDeadzone)
+            {
+                rb.linearVelocity = Vector2.zero;
+            }
+            else
+            {
+                rb.linearVelocity = Vector2.MoveTowards(
+                    rb.linearVelocity, desired, followAcceleration * Time.fixedDeltaTime);
+            }
 
             // 世界边界（软）：子球同样受约束，避免被主球带着一起越界
             if (ArenaManager.Instance != null)

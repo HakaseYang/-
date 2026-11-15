@@ -199,6 +199,37 @@ namespace QiuQiu.EditorTools
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                 new Color(0.05f, 0.09f, 0.07f, 0.95f));
 
+            // 返回主菜单按钮（放在“重新开始”上方，纯色矩形，风格一致）
+            var backGo = new GameObject("BtnBackToMenu", typeof(RectTransform), typeof(Image), typeof(Button));
+            var backRect = (RectTransform)backGo.transform;
+            backGo.transform.SetParent(card.transform, false);
+            backRect.anchorMin = new Vector2(0.5f, 0f);
+            backRect.anchorMax = new Vector2(0.5f, 0f);
+            backRect.pivot = new Vector2(0.5f, 0f);
+            backRect.sizeDelta = new Vector2(460f, 120f);
+            backRect.anchoredPosition = new Vector2(0f, 268f);
+
+            var backImage = backGo.GetComponent<Image>();
+            backImage.color = new Color(0.34f, 0.52f, 0.78f, 0.98f);
+
+            var backButton = backGo.GetComponent<Button>();
+            backButton.targetGraphic = backImage;
+            backButton.transition = Selectable.Transition.ColorTint;
+            backButton.colors = new ColorBlock
+            {
+                normalColor = Color.white,
+                highlightedColor = new Color(0.92f, 0.92f, 0.92f, 1f),
+                pressedColor = new Color(0.72f, 0.72f, 0.72f, 1f),
+                selectedColor = Color.white,
+                disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f),
+                colorMultiplier = 1f,
+                fadeDuration = 0.08f,
+            };
+
+            CreateText(backGo.transform, "Label", "返回主菜单", 46, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(0.95f, 0.97f, 1f, 0.98f));
+
             // 组件引用：panelRoot = 视觉 Panel（默认隐藏）
             var gameOver = root.GetComponent<GameOverPanel>();
             var so = new SerializedObject(gameOver);
@@ -207,10 +238,13 @@ namespace QiuQiu.EditorTools
             so.FindProperty("peakMassText").objectReferenceValue = peak;
             so.FindProperty("finalRankText").objectReferenceValue = rank;
             so.FindProperty("restartButton").objectReferenceValue = button;
+            so.FindProperty("backToMenuButton").objectReferenceValue = backButton;
+            so.FindProperty("mainMenuSceneName").stringValue = "MainMenu";
             so.ApplyModifiedPropertiesWithoutUndo();
 
             // OnClick -> GameOverPanel.Restart()（持久化监听，Inspector 里看得见；Awake 见已有监听就不再重复挂）
             UnityEventTools.AddPersistentListener(button.onClick, gameOver.Restart);
+            UnityEventTools.AddPersistentListener(backButton.onClick, gameOver.BackToMenu);
 
             // 面板本体默认隐藏（注意是子物体 Panel，不是挂组件的 root）
             panel.SetActive(false);

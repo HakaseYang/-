@@ -54,7 +54,7 @@ namespace QiuQiu
             if (eater == null || eater.IsDead) return;
 
             consumed = true;
-            eater.AddMass(mass);
+            eater.AddMassFromEat(mass);   // 食物也按难度倍率结算
             Destroy(gameObject);
         }
     }

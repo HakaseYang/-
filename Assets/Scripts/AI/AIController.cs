@@ -46,6 +46,13 @@ namespace QiuQiu
         [Tooltip("基础移动速度（世界单位/秒）。Wander 状态用这个速度。")]
         [SerializeField] private float moveSpeed = 3.2f;
 
+        /// <summary>当前移动速度（DifficultyManager 会按难度微调它）。</summary>
+        public float MoveSpeed
+        {
+            get => moveSpeed;
+            set => moveSpeed = Mathf.Max(0.1f, value);
+        }
+
         [Tooltip("Chase 状态的速度倍率。")]
         [SerializeField] private float chaseSpeedFactor = 1.15f;
 

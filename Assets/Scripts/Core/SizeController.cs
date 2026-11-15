@@ -161,8 +161,22 @@ namespace QiuQiu
 
             float gain = other.mass;   // 先记录，Die 之后对方数据就不可信了
             other.Die(this);
-            AddMass(gain);
+            AddMassFromEat(gain);
             return true;
+        }
+
+        /// <summary>
+        /// 吃掉东西时增加质量（统一入口）：按难度乘上吞噬倍率。
+        ///   玩家（team == 0）用 GameSettings.PlayerEatMultiplier；
+        ///   AI（team != 0）用 GameSettings.AiEatMultiplier。
+        /// 食物（Edible）和吞噬敌人（TryEat）都走这里，所以难度只在一处生效。
+        /// </summary>
+        public void AddMassFromEat(float rawAmount)
+        {
+            if (IsDead || rawAmount <= 0f) return;
+
+            float multiplier = Team == 0 ? GameSettings.PlayerEatMultiplier : GameSettings.AiEatMultiplier;
+            AddMass(rawAmount * multiplier);
         }
 
         /// <summary>

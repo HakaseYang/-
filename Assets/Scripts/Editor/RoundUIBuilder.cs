@@ -190,6 +190,17 @@ namespace QiuQiu.EditorTools
             if (sprite != null && ballSprite != null) sprite.objectReferenceValue = ballSprite;
 
             so.ApplyModifiedPropertiesWithoutUndo();
+
+            EnsureDifficultyManager();
+        }
+
+        /// <summary>游戏场景里放一个常驻的 DifficultyManager（Start 时读取主菜单写入的难度）。</summary>
+        private static void EnsureDifficultyManager()
+        {
+            if (Object.FindFirstObjectByType<DifficultyManager>() != null) return;
+
+            new GameObject("DifficultyManager", typeof(DifficultyManager));
+            Debug.Log("[RoundUIBuilder] 已创建 DifficultyManager（读取 GameSettings 难度并应用吞噬倍率）");
         }
 
         private static void SetFloat(SerializedObject so, string name, float value)

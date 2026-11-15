@@ -19,6 +19,9 @@ namespace QiuQiu
         /// <summary>食物（含吐出来的球）在质量 = 1 时的世界直径。</summary>
         public const float FoodDiameterAtMass1 = 0.28f;
 
+        /// <summary>所有球体的默认线性阻尼（2~5 之间手感比较自然，也不至于滑腻）。</summary>
+        public const float DefaultLinearDamping = 3f;
+
         /// <summary>创建一个可以被吞噬、也能吞噬别人的球体。</summary>
         public static GameObject CreateBall(string name, Vector3 position, float mass, Sprite sprite, Color color, int team, int sortingOrder = 10)
         {
@@ -34,7 +37,9 @@ namespace QiuQiu
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Dynamic;
             rb.gravityScale = 0f;
-            rb.linearDamping = 0f;
+            // 线性阻尼给一个非 0 值：物理引擎会自己消耗掉残余速度（分裂冲量、被撞飞的动量），
+            // 而不是让球带着几厘米/秒的微小速度永远飘下去（上下分裂时最容易被看出来）。
+            rb.linearDamping = DefaultLinearDamping;
             rb.angularDamping = 0f;
             rb.freezeRotation = true;
             rb.interpolation = RigidbodyInterpolation2D.Interpolate;

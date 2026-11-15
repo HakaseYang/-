@@ -402,6 +402,20 @@ namespace QiuQiu
             var rb = ball.GetComponent<Rigidbody2D>();
             if (rb == null) return;
 
+            // 没有输入时直接硬清零：这是“球自己慢慢漂”的根治办法。
+            // 之前用 MoveTowards 逼近 0，虽然理论上会收敛，但只要有任何系统（子球弹簧、
+            // 物理接触、边界推回）每帧写入一个极小的非 0 速度，就会形成永久漂移；
+            // 这里直接清零，不给残余速度留活路。
+            if (input.sqrMagnitude <= 0.0001f)
+            {
+                rb.linearVelocity = Vector2.zero;
+
+                if (ArenaManager.Instance != null)
+                    ArenaManager.Instance.Constrain(rb, ball.Radius);
+
+                return;
+            }
+
             Vector2 targetVelocity = input * moveSpeed;
             Vector2 current = rb.linearVelocity;
 

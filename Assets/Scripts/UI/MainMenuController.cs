@@ -1,3 +1,4 @@
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -15,7 +16,7 @@ namespace QiuQiu
     {
         [Header("场景")]
         [Tooltip("点击难度后加载的游戏场景名（必须在 Build Settings 里）。")]
-        [SerializeField] private string gameplaySceneName = "SampleScene";
+        [SerializeField] private string gameplaySceneName = GameSettings.GameplaySceneName;
 
         [Header("可选 UI")]
         [Tooltip("显示当前难度的文本（可留空）。")]
@@ -77,22 +78,70 @@ namespace QiuQiu
             }
         }
 
+        /// <summary>
+        /// 加载游戏场景。
+        ///
+        /// 为什么不再用 Application.CanStreamedLevelBeLoaded(name) 做判断：
+        ///   1. 它只认 Build Settings 里的场景名，场景文件一改名，代码/Inspector 里
+        ///      存着的旧名字就会静默失效——表现为“点按钮完全没反应”；
+        ///   2. 它在 Edit Mode（非 Play Mode）里几乎总是返回 false，调试时非常误导。
+        /// 这里改成直接遍历 Build Settings 拿 buildIndex，并且在配置的名字失效时
+        /// 自动回退到 GameSettings.GameplaySceneName，改名字不再需要同步 Inspector。
+        /// </summary>
         private void LoadGameplayScene()
         {
-            if (string.IsNullOrEmpty(gameplaySceneName))
+            string resolved = ResolveGameplaySceneName(out int buildIndex);
+
+            if (resolved == null)
             {
-                Debug.LogError("[主菜单] gameplaySceneName 为空，无法加载游戏场景");
+                Debug.LogError($"[主菜单] 场景 \"{gameplaySceneName}\" 不在 Build Settings 里" +
+                               $"（备用名 \"{GameSettings.GameplaySceneName}\" 也没有），无法加载关卡。" +
+                               "请打开 File > Build Settings 确认场景已勾选。");
                 return;
             }
 
-            if (Application.CanStreamedLevelBeLoaded(gameplaySceneName))
+            if (!string.Equals(resolved, gameplaySceneName, System.StringComparison.Ordinal))
             {
-                SceneManager.LoadScene(gameplaySceneName);
+                Debug.LogWarning($"[主菜单] 配置的场景名 \"{gameplaySceneName}\" 已失效，" +
+                                 $"自动改用 \"{resolved}\"（Build Settings 索引 {buildIndex}）。" +
+                                 "建议在 Inspector 里把 Gameplay Scene Name 改过来。");
             }
-            else
+
+            SceneManager.LoadScene(buildIndex);
+        }
+
+        /// <summary>在 Build Settings 里按场景名（不含扩展名）找索引；找不到返回 -1。</summary>
+        public static int GetBuildIndexBySceneName(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName)) return -1;
+
+            int count = SceneManager.sceneCountInBuildSettings;
+            for (int i = 0; i < count; i++)
             {
-                Debug.LogError($"[主菜单] 场景 {gameplaySceneName} 不在 Build Settings 里，请先添加");
+                string path = SceneUtility.GetScenePathByBuildIndex(i);
+                if (string.IsNullOrEmpty(path)) continue;
+
+                if (string.Equals(Path.GetFileNameWithoutExtension(path), sceneName,
+                        System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
             }
+
+            return -1;
+        }
+
+        /// <summary>先按 Inspector 配置的名字找，再回退到 GameSettings 的常量名。</summary>
+        private string ResolveGameplaySceneName(out int buildIndex)
+        {
+            buildIndex = GetBuildIndexBySceneName(gameplaySceneName);
+            if (buildIndex >= 0) return gameplaySceneName;
+
+            buildIndex = GetBuildIndexBySceneName(GameSettings.GameplaySceneName);
+            if (buildIndex >= 0) return GameSettings.GameplaySceneName;
+
+            buildIndex = -1;
+            return null;
         }
 
         private void RefreshLabels()

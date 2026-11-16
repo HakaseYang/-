@@ -3,7 +3,7 @@ using UnityEngine;
 namespace QiuQiu
 {
     /// <summary>
-    /// 难度管理器：游戏场景（SampleScene）里的一个常驻对象，Start 时读取主菜单写入的难度，
+    /// 难度管理器：游戏场景（LevelScene）里的一个常驻对象，Start 时读取主菜单写入的难度，
     /// 把“吞噬质量倍率”落到全局，并按需覆盖 GameManager 的初始数值。
     ///
     /// 它只做三件事：

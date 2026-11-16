@@ -23,7 +23,7 @@ namespace QiuQiu
     /// 重开一局：
     ///   SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex)
     ///   注意两点：
-    ///     1. 场景必须在 Build Settings 里（否则 buildIndex = -1，加载会失败）——本工程 SampleScene 已在列表里；
+    ///     1. 场景必须在 Build Settings 里（否则 buildIndex = -1，加载会失败）——本工程 LevelScene 已在列表里；
     ///     2. 加载前把 Time.timeScale 恢复成 1，否则新场景一进去就是定格的（GameManager.Awake 里也做了一次兜底）。
     /// </summary>
     [DisallowMultipleComponent]
@@ -171,14 +171,15 @@ namespace QiuQiu
                 return;
             }
 
-            if (Application.CanStreamedLevelBeLoaded(mainMenuSceneName))
-            {
-                SceneManager.LoadScene(mainMenuSceneName);
-            }
-            else
+            // 用 buildIndex 加载：名字被改过也不会静默失败（CanStreamedLevelBeLoaded 只认名字）
+            int menuIndex = MainMenuController.GetBuildIndexBySceneName(mainMenuSceneName);
+            if (menuIndex < 0)
             {
                 Debug.LogError($"[GameOverPanel] 场景 {mainMenuSceneName} 不在 Build Settings 里，请先添加");
+                return;
             }
+
+            SceneManager.LoadScene(menuIndex);
         }
     }
 }

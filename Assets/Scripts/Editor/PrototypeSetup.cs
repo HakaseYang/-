@@ -18,7 +18,8 @@ namespace QiuQiu.EditorTools
     /// </summary>
     public static class PrototypeSetup
     {
-        private const string ScenePath = "Assets/Scenes/SampleScene.unity";
+        // 场景名统一来自 GameSettings，改场景名只需要改那一处。
+        private static string ScenePath => $"Assets/Scenes/{GameSettings.GameplaySceneName}.unity";
         private const string ControlsPath = "Assets/Input/Controls.inputactions";
         private const string SpriteFolder = "Assets/Sprites";
         private const string BallSpritePath = "Assets/Sprites/Ball.png";
@@ -220,9 +221,8 @@ namespace QiuQiu.EditorTools
         /// <summary>
         /// 第五步：完整可玩场景 —— 软边界竞技场 + AI 敌人 + 移动端 UI。
         ///
-        /// AI 阵营设计：每个 AI 一个独立阵营（1、2、3…），玩家是 0。
-        /// 这样 AI 之间也会互相追、互相吃，地图才不会"一潭死水"；
-        /// 如果希望 AI 结盟（只吃玩家、互不吞噬），把下面的 team 都改成 1 即可。
+        /// 阵营：玩家是 0，所有 AI 是 1。阵营不再决定“能不能吃”——只有玩家自己的球互免，
+        /// AI 之间是谁大谁吃谁，所以场上会出现越滚越大的霸主，靠补员维持数量。
         /// </summary>
         [MenuItem("Tools/球球大作战/6. 搭建第五步场景（边界 + AI 敌人 + 移动端 UI）", false, 6)]
         public static void BuildArenaAIScene()
@@ -310,10 +310,8 @@ namespace QiuQiu.EditorTools
                 string name = $"AI_{i:00}";
                 GameObject ai = CreateBall(name, ballSprite, colors[i % colors.Length], pos, masses[i], "Enemy");
 
-                // 所有 AI 共享同一个阵营（1）：AI 之间不会互相吞并，
-                // 地图上始终保有一批大小不一的敌人，玩家的“威胁/猎物”分布稳定。
-                // 如果想让 AI 之间也互相吞噬，把 aiTeam 改成 i + 1 即可（但实测会让一只
-                // AI 雪球式滚到 700+ 质量，然后开局就把玩家吃掉，体验很差）。
+                // 所有 AI 共用阵营 1。同阵营不再免除吞噬：大的 AI 会吃掉小的 AI，
+                // 于是场上会滚出一只大雪球，玩家不再是唯一的成长曲线（见 Eater 的归属判定）。
                 int aiTeam = 1;
                 var size = ai.GetComponent<SizeController>();
                 if (size != null)
@@ -325,7 +323,6 @@ namespace QiuQiu.EditorTools
 
                 var aiController = ai.AddComponent<AIController>();
                 var aiSo = new SerializedObject(aiController);
-                aiSo.FindProperty("team").intValue = aiTeam;
                 // 每个 AI 速度略有差异，看起来更"活"
                 aiSo.FindProperty("moveSpeed").floatValue = 2.8f + (float)rng.NextDouble() * 1.2f;
                 aiSo.FindProperty("scanRadius").floatValue = 7f + (float)rng.NextDouble() * 3f;
@@ -573,7 +570,7 @@ namespace QiuQiu.EditorTools
             so.FindProperty("mass").floatValue = mass;
             so.FindProperty("referenceMass").floatValue = 10f;
             so.FindProperty("radiusAtReferenceMass").floatValue = 0.75f;
-            so.FindProperty("team").intValue = team;   // 0 = 玩家，1 = AI：同阵营不互吃
+            so.FindProperty("team").intValue = team;   // 0 = 玩家，1 = AI：只用于统计，不决定吃不吃
             so.ApplyModifiedPropertiesWithoutUndo();
             size.ApplySizeNow();
 

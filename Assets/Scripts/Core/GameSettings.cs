@@ -29,8 +29,8 @@ namespace QiuQiu
         /// <summary>主菜单场景名（Build Settings 索引 0）。</summary>
         public const string MainMenuSceneName = "MainMenu";
 
-        /// <summary>游戏场景名。</summary>
-        public const string GameplaySceneName = "SampleScene";
+        /// <summary>游戏场景名（唯一事实来源：改场景名只改这里）。</summary>
+        public const string GameplaySceneName = "LevelScene";
 
         // 三档难度的吞噬倍率表（想调平衡改这里就够了）
         private const float EasyPlayerMultiplier = 1.5f;

@@ -416,7 +416,7 @@ namespace QiuQiu
                 return;
             }
 
-            Vector2 targetVelocity = input * moveSpeed;
+            Vector2 targetVelocity = input * (moveSpeed * ball.MoveSpeedFactor);
             Vector2 current = rb.linearVelocity;
 
             Vector2 next = acceleration <= 0f

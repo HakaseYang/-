@@ -71,13 +71,16 @@ namespace QiuQiu
         [SerializeField] private int aiMaxCount = 10;
 
         [Tooltip("补员间隔（秒）：两次生成之间至少隔这么久，避免一帧刷出一堆。")]
-        [SerializeField] private float aiRespawnDelay = 3f;
+        [SerializeField] private float aiRespawnDelay = 1.5f;
 
         [Tooltip("新 AI 的质量范围。")]
         [SerializeField] private float aiMinMass = 4f;
         [SerializeField] private float aiMaxMass = 60f;
 
-        [Tooltip("新 AI 的阵营编号（所有 AI 同阵营 → AI 之间不互吃）。")]
+        [Tooltip("新 AI 出生无敌时间（秒）：避免刚生成就被大雪球连吃。0 = 关闭。")]
+        [SerializeField] private float aiSpawnInvulnerability = 2f;
+
+        [Tooltip("新 AI 的阵营编号（1 = AI）。只有玩家自己的球互免，AI 之间照样互吃。")]
         [SerializeField] private int aiTeam = 1;
 
         [Tooltip("AI 可用的颜色。")]
@@ -303,6 +306,11 @@ namespace QiuQiu
         /// </summary>
         private Vector3 FindSafeSpawnPoint(float mass)
         {
+            return FindSafeSpawnPoint(mass, lastDeathPosition);
+        }
+
+        private Vector3 FindSafeSpawnPoint(float mass, Vector3 fallback)
+        {
             float threatMass = mass * Mathf.Max(1f, respawnThreatMassRatio);
             float safeRadius = Mathf.Max(0.5f, respawnSafeRadius);
 
@@ -310,7 +318,7 @@ namespace QiuQiu
 
             for (int attempt = 0; attempt < Mathf.Max(1, respawnPlacementAttempts); attempt++)
             {
-                Vector3 candidate = lastDeathPosition;
+                Vector3 candidate = fallback;
 
                 if (ArenaManager.Instance != null)
                 {
@@ -335,7 +343,7 @@ namespace QiuQiu
                 if (!blocked) return candidate;
             }
 
-            return lastDeathPosition;
+            return fallback;
         }
 
         // ======================== AI 补员 ========================
@@ -383,12 +391,8 @@ namespace QiuQiu
                 ? ArenaManager.Instance.GetRandomPointInside(null, 1.5f)
                 : Vector3.zero;
 
-            // 别生成在玩家脸上
-            if (player != null && player.MainBall != null &&
-                Vector2.Distance(player.MainBall.transform.position, position) < 4f)
-            {
-                position += (Vector3)(UnityEngine.Random.insideUnitCircle.normalized * 6f);
-            }
+            // 别生成在能一口吃掉它的球脸上（雪球模式下就是那只霸主）
+            position = FindSafeSpawnPoint(mass, position);
 
             string name = $"AI_{aiSpawnCounter:00}";
             aiSpawnCounter++;
@@ -401,6 +405,7 @@ namespace QiuQiu
             ai.ApplyRandomProfile(UnityEngine.Random.Range(0.9f, 1.25f), UnityEngine.Random.Range(0.85f, 1.15f));
 
             var size = go.GetComponent<SizeController>();
+            size.SetInvulnerable(aiSpawnInvulnerability);
             Debug.Log($"[补员] 生成 {name}（质量 {mass:F0}）在 {position}，场上 AI 数 {AliveAiCount}");
             return size;
         }

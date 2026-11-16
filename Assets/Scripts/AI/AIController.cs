@@ -38,10 +38,6 @@ namespace QiuQiu
             就近
         }
 
-        [Header("阵营")]
-        [Tooltip("同阵营的球不会互相吞噬（Eater 会跳过同 Team）。玩家是 0，AI 建议 >= 1。")]
-        [SerializeField] private int team = 1;
-
         [Header("移动")]
         [Tooltip("基础移动速度（世界单位/秒）。Wander 状态用这个速度。")]
         [SerializeField] private float moveSpeed = 3.2f;
@@ -117,7 +113,6 @@ namespace QiuQiu
         private float nextScanTime;
 
         public AIState CurrentState => state;
-        public int Team => team;
         public string CurrentTargetName =>
             chaseTarget != null ? chaseTarget.name : (chaseFood != null ? chaseFood.name : "-");
 
@@ -220,9 +215,9 @@ namespace QiuQiu
                             nearestThreat = other;
                         }
                     }
-                    else if (self.CanEat(other) && other.Team != team)
+                    else if (self.CanEat(other))
                     {
-                        // 我能吃它，且不是同阵营 → 猎物
+                        // 我能吃它 → 猎物（不分阵营：AI 之间也互吃）
                         if (sqrDistance < nearestPreyDistanceSqr)
                         {
                             nearestPreyDistanceSqr = sqrDistance;
@@ -371,7 +366,7 @@ namespace QiuQiu
         {
             if (desiredDirection.sqrMagnitude < 0.0001f) return;
 
-            float speed = moveSpeed;
+            float speed = moveSpeed * (self != null ? self.MoveSpeedFactor : 1f);
             if (state == AIState.Chase) speed *= Mathf.Max(0.1f, chaseSpeedFactor);
             else if (state == AIState.Flee) speed *= Mathf.Max(0.1f, fleeSpeedFactor);
 

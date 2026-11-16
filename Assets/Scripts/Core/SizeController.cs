@@ -41,8 +41,16 @@ namespace QiuQiu
         [SerializeField, Range(1f, 2f)] private float eatMassRatio = 1.2f;
 
         [Header("阵营")]
-        [Tooltip("0 = 玩家，1 = AI。同阵营的球之间不会互相吞噬（玩家分裂出的子球不会被主球吃掉）。")]
+        [Tooltip("0 = 玩家，1 = AI。阵营只用于统计（吞噬倍率 / 名次 / 补员计数），不决定谁能吃谁——" +
+                 "那个判定在 Eater 里，只保护玩家自己的球。")]
         [SerializeField] private int team = 0;
+
+        [Header("移动手感")]
+        [Tooltip("速度参考质量：这个质量下移动倍率是 1.0，比它大就越慢。默认 60 = 玩家开局质量。")]
+        [SerializeField] private float speedReferenceMass = 60f;
+
+        [Tooltip("大球的最低速度倍率：质量再大也不会低于它，避免变成一块石头。")]
+        [SerializeField, Range(0.1f, 1f)] private float minSpeedFactor = 0.4f;
 
         /// <summary>质量变化后触发（参数为自己）。</summary>
         public event Action<SizeController> MassChanged;
@@ -76,6 +84,20 @@ namespace QiuQiu
         public float Radius => radiusAtReferenceMass * Mathf.Sqrt(Mathf.Max(mass, 0.0001f) / Mathf.Max(referenceMass, 0.0001f));
         public float EatMassRatio => eatMassRatio;
         public int Score => Mathf.FloorToInt(mass);
+
+        /// <summary>
+        /// 质量越大越慢：倍率 = (speedReferenceMass / mass) ^ 0.2，夹在 [minSpeedFactor, 1]。
+        /// 开场 60 质量 = 1.0，300 ≈ 0.70，1157 ≈ 0.48。AI 和玩家共用同一条曲线，
+        /// 所以大雪球追不上小球是规则，不是运气。
+        /// </summary>
+        public float MoveSpeedFactor
+        {
+            get
+            {
+                float ratio = Mathf.Max(0.0001f, speedReferenceMass) / Mathf.Max(0.0001f, mass);
+                return Mathf.Clamp(Mathf.Pow(ratio, 0.2f), minSpeedFactor, 1f);
+            }
+        }
         public int Team => team;
         public bool IsDead { get; private set; }
 

@@ -27,12 +27,18 @@ namespace QiuQiu.EditorTools
     ///          └─ BtnQuit         "Quit Game"        → MainMenuController.QuitGame()
     ///     └─ EventSystem（Input System UI Input Module）
     ///     └─ MainMenuManager（MainMenuController）
-    ///   Build Settings：MainMenu = 0，SampleScene = 1
+    ///   Build Settings：MainMenu = 0，游戏场景（GameSettings.GameplaySceneName）= 1
     /// </summary>
     public static class MainMenuBuilder
     {
-        private const string MenuScenePath = "Assets/Scenes/MainMenu.unity";
-        private const string GameplayScenePath = "Assets/Scenes/SampleScene.unity";
+        private const string ScenesFolder = "Assets/Scenes";
+        private const string MenuScenePath = ScenesFolder + "/MainMenu.unity";
+
+        /// <summary>
+        /// 游戏场景路径。由 GameSettings.GameplaySceneName 拼出来而不是写死字符串，
+        /// 这样以后再给场景改名只需要改 GameSettings 一处。
+        /// </summary>
+        private static string GameplayScenePath => $"{ScenesFolder}/{GameSettings.GameplaySceneName}.unity";
 
         private static readonly Color BackdropColor = new Color(0.055f, 0.075f, 0.11f, 1f);
 
@@ -65,7 +71,7 @@ namespace QiuQiu.EditorTools
         public static void FixBuildSettings()
         {
             ConfigureBuildSettings();
-            Debug.Log("[MainMenuBuilder] Build Settings 已重排：MainMenu = 0，SampleScene = 1");
+            Debug.Log($"[MainMenuBuilder] Build Settings 已重排：MainMenu = 0，{GameSettings.GameplaySceneName} = 1");
         }
 
         private static void ConfigureBuildSettings()

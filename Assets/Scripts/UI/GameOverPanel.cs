@@ -95,6 +95,12 @@ namespace QiuQiu
         /// <summary>显示结算面板（GameManager 在 GameOver 时调用）。</summary>
         public void Show(GameManager manager)
         {
+            // 整个面板根可能是关着的（编辑器里为了不挡视野），只点亮子物体不会渲染，先把自己打开
+            if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+            }
+
             gameManager = manager != null ? manager : gameManager;
 
             if (panelRoot == null) panelRoot = gameObject;

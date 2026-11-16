@@ -1,7 +1,6 @@
 using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 namespace QiuQiu
 {
@@ -18,13 +17,6 @@ namespace QiuQiu
         [Tooltip("点击难度后加载的游戏场景名（必须在 Build Settings 里）。")]
         [SerializeField] private string gameplaySceneName = GameSettings.GameplaySceneName;
 
-        [Header("可选 UI")]
-        [Tooltip("显示当前难度的文本（可留空）。")]
-        [SerializeField] private Text difficultyLabel;
-
-        [Tooltip("显示历史最高质量的文本（可留空）。")]
-        [SerializeField] private Text bestMassLabel;
-
         public const string BestMassPrefKey = "QiuQiu.BestMass";
 
         private void Start()
@@ -32,8 +24,6 @@ namespace QiuQiu
             // 主菜单里没有玩家球，确保不残留上一局的时间缩放
             Time.timeScale = 1f;
             AudioListener.pause = false;
-
-            RefreshLabels();
         }
 
         /// <summary>按钮 1~3 的统一入口：level = 1/2/3。</summary>
@@ -142,20 +132,6 @@ namespace QiuQiu
 
             buildIndex = -1;
             return null;
-        }
-
-        private void RefreshLabels()
-        {
-            if (difficultyLabel != null)
-            {
-                difficultyLabel.text = $"当前难度：{GameSettings.GetShortName(GameSettings.Difficulty)}";
-            }
-
-            if (bestMassLabel != null)
-            {
-                float best = PlayerPrefs.GetFloat(BestMassPrefKey, 0f);
-                bestMassLabel.text = best > 0f ? $"历史最高质量：{best:F0}" : "历史最高质量：—";
-            }
         }
     }
 }

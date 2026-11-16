@@ -21,6 +21,10 @@ namespace QiuQiu
         private static readonly float[] PlayerEatTable = { 1.5f, 1f, 0.5f };
         private static readonly float[] AiEatTable = { 0.5f, 1f, 1.5f };
 
+        // 同一套下标：给日志看的长名字 / 给玩家看的中文名
+        private static readonly string[] LogNames = { "Level 1 (Easy)", "Level 2 (Normal)", "Level 3 (Hard)" };
+        private static readonly string[] PlayerNames = { "简单", "普通", "困难" };
+
         public static float PlayerEatMultiplier { get; private set; }
         public static float AiEatMultiplier { get; private set; }
 
@@ -37,49 +41,32 @@ namespace QiuQiu
             set { SetLevel(value); }
         }
 
+        // 主菜单按钮传的是 1 / 2 / 3
         public static void SetDifficulty(int level)
         {
             Difficulty = ClampLevel(level);
         }
 
-        public static void RefreshMultipliers()
-        {
-            ApplyMultipliers(difficulty);
-        }
-
         public static string GetDisplayName(DifficultyLevel level)
         {
-            switch (level)
-            {
-                case DifficultyLevel.Easy: return "Level 1 (Easy)";
-                case DifficultyLevel.Hard: return "Level 3 (Hard)";
-                default: return "Level 2 (Normal)";
-            }
+            return LogNames[(int)ClampLevel((int)level) - 1];
         }
 
         public static string GetShortName(DifficultyLevel level)
         {
-            switch (level)
-            {
-                case DifficultyLevel.Easy: return "简单";
-                case DifficultyLevel.Hard: return "困难";
-                default: return "普通";
-            }
+            return PlayerNames[(int)ClampLevel((int)level) - 1];
         }
 
+        // 唯一改状态的地方：存难度 + 同步倍率，两件事分不开
         private static void SetLevel(DifficultyLevel level)
         {
             difficulty = ClampLevel((int)level);
-            ApplyMultipliers(difficulty);
-        }
-
-        private static void ApplyMultipliers(DifficultyLevel level)
-        {
-            int index = Mathf.Clamp((int)level - 1, 0, PlayerEatTable.Length - 1);
+            int index = (int)difficulty - 1;
             PlayerEatMultiplier = PlayerEatTable[index];
             AiEatMultiplier = AiEatTable[index];
         }
 
+        // 外部能传 0、99、(DifficultyLevel)7，这里是唯一的守门人
         private static DifficultyLevel ClampLevel(int raw)
         {
             return (DifficultyLevel)Mathf.Clamp(raw, (int)DifficultyLevel.Easy, (int)DifficultyLevel.Hard);

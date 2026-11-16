@@ -81,7 +81,7 @@ namespace QiuQiu
         [SerializeField] private float aiSpawnInvulnerability = 2f;
 
         [Tooltip("新 AI 的阵营编号（1 = AI）。只有玩家自己的球互免，AI 之间照样互吃。")]
-        [SerializeField] private int aiTeam = 1;
+        [SerializeField] private Team aiTeam = Team.Enemy;
 
         [Tooltip("AI 可用的颜色。")]
         [SerializeField] private Color[] aiColors =
@@ -496,7 +496,7 @@ namespace QiuQiu
             {
                 var ball = all[i];
                 if (ball == null || ball.IsDead) continue;
-                if (ball.Team == 0) continue;          // 只统计对手（AI）
+                if (ball.Team == Team.Player) continue;          // 只统计对手（AI）
 
                 aliveOpponents++;
                 if (ball.Mass > FinalMass) betterThanMe++;

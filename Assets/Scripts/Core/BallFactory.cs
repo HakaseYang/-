@@ -23,7 +23,7 @@ namespace QiuQiu
         public const float DefaultLinearDamping = 3f;
 
         /// <summary>创建一个可以被吞噬、也能吞噬别人的球体。</summary>
-        public static GameObject CreateBall(string name, Vector3 position, float mass, Sprite sprite, Color color, int team, int sortingOrder = 10)
+        public static GameObject CreateBall(string name, Vector3 position, float mass, Sprite sprite, Color color, Team team, int sortingOrder = 10)
         {
             var go = new GameObject(name);
             go.transform.position = position;

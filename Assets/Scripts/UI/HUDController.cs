@@ -120,7 +120,7 @@ namespace QiuQiu
             {
                 SizeController ball = all[i];
                 if (ball == null || ball.IsDead) continue;
-                if (ball.Team == 0) continue;   // 玩家自己的球不参与“对手”统计
+                if (ball.Team == Team.Player) continue;   // 玩家自己的球不参与“对手”统计
 
                 opponents++;
                 if (ball.Mass > myMass) better++;

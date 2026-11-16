@@ -23,8 +23,8 @@ namespace QiuQiu
                 return;
             }
 
-            //for play don't eat it self
-            if (self.Team == 0 && target.Team == 0)
+            // 玩家自己的球互不吃（AI 之间、AI 和玩家之间都能吃）
+            if (self.Team == Team.Player && target.Team == Team.Player)
             {
                 return;
             }

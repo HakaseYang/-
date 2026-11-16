@@ -499,7 +499,7 @@ namespace QiuQiu
             for (int i = 0; i < registry.Count; i++)
             {
                 SizeController ball = registry[i];
-                if (ball == null || ball.IsDead || ball.Team != 0) continue;
+                if (ball == null || ball.IsDead || ball.Team != Team.Player) continue;
                 if (activePlayerBalls.Contains(ball)) continue;
 
                 RegisterBall(ball);
@@ -685,7 +685,7 @@ namespace QiuQiu
                 return null;
             }
 
-            GameObject go = BallFactory.CreateBall(ballName, position, mass, sprite, color, 0, 10);
+            GameObject go = BallFactory.CreateBall(ballName, position, mass, sprite, color, Team.Player, 10);
             go.tag = "Player";
 
             SizeController ball = go.GetComponent<SizeController>();

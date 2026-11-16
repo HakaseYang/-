@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-
     public enum DifficultyLevel
     {
         Easy = 1,
@@ -19,7 +18,7 @@ namespace QiuQiu
         private static readonly float[] PlayerEatTable = { 1.5f, 1f, 0.5f };
         private static readonly float[] AiEatTable = { 0.5f, 1f, 1.5f };
 
-        // 给日志/报错看的长名字，下标 = 难度 - 1
+        // for check
         private static readonly string[] LogNames = { "Level 1 (Easy)", "Level 2 (Normal)", "Level 3 (Hard)" };
 
         public static float PlayerEatMultiplier { get; private set; }
@@ -38,18 +37,19 @@ namespace QiuQiu
             set { SetLevel(value); }
         }
 
-        // 主菜单按钮传的是 1 / 2 / 3
+        // for mainmenu
         public static void SetDifficulty(int level)
         {
             Difficulty = ClampLevel(level);
         }
 
+        //for log
         public static string GetDisplayName(DifficultyLevel level)
         {
             return LogNames[(int)ClampLevel((int)level) - 1];
         }
 
-        // 改难度 = 顺手把倍率一起换成同一档
+        // Changing difficulty&Multiplier
         private static void SetLevel(DifficultyLevel level)
         {
             difficulty = ClampLevel((int)level);
@@ -58,7 +58,7 @@ namespace QiuQiu
             AiEatMultiplier = AiEatTable[index];
         }
 
-        
+        //sure only 1-3
         private static DifficultyLevel ClampLevel(int raw)
         {
             return (DifficultyLevel)Mathf.Clamp(raw, (int)DifficultyLevel.Easy, (int)DifficultyLevel.Hard);

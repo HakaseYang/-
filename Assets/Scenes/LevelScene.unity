@@ -3077,9 +3077,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b5b26c923768c9d4e80c76d100ad9867, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.ArenaManager
-  shape: 0
   rectangleSize: {x: 50, y: 50}
-  circleRadius: 30
   centerOverride: {fileID: 0}
   clampPosition: 1
   pushBackStrength: 4

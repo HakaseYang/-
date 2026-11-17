@@ -9,18 +9,10 @@ namespace QiuQiu
     [DisallowMultipleComponent]
     public class ArenaManager : MonoBehaviour
     {
-        public enum ArenaShape
-        {
-            Rectangle,
-            Circle
-        }
-
         public static ArenaManager Instance { get; private set; }
 
         [Header("Shape")]
-        [SerializeField] private ArenaShape shape = ArenaShape.Rectangle;
         [SerializeField] private Vector2 rectangleSize = new Vector2(50f, 50f);
-        [SerializeField] private float circleRadius = 30f;
         [SerializeField] private Transform centerOverride;
 
         [Header("Border Behaviour")]
@@ -40,14 +32,7 @@ namespace QiuQiu
             get { return centerOverride != null ? (Vector2)centerOverride.position : (Vector2)transform.position; }
         }
 
-        public Vector2 HalfSize
-        {
-            get
-            {
-                if (shape == ArenaShape.Circle) return new Vector2(circleRadius, circleRadius);
-                return rectangleSize * 0.5f;
-            }
-        }
+        public Vector2 HalfSize { get { return rectangleSize * 0.5f; } }
 
         private void Awake()
         {
@@ -64,13 +49,8 @@ namespace QiuQiu
         public bool IsInside(Vector2 position, float radius = 0f)
         {
             Vector2 center = Center;
-
-            if (shape == ArenaShape.Circle)
-            {
-                return Vector2.Distance(position, center) <= circleRadius - radius;
-            }
-
             Vector2 half = HalfSize;
+
             return position.x >= center.x - half.x + radius &&
                    position.x <= center.x + half.x - radius &&
                    position.y >= center.y - half.y + radius &&
@@ -80,16 +60,8 @@ namespace QiuQiu
         private Vector2 ClampPosition(Vector2 position, float radius)
         {
             Vector2 center = Center;
-
-            if (shape == ArenaShape.Circle)
-            {
-                float allowed = Mathf.Max(0f, circleRadius - radius);
-                Vector2 offset = position - center;
-                if (offset.sqrMagnitude <= allowed * allowed) return position;
-                return center + offset.normalized * allowed;
-            }
-
             Vector2 half = HalfSize;
+
             float minX = center.x - half.x + radius;
             float maxX = center.x + half.x - radius;
             float minY = center.y - half.y + radius;
@@ -106,19 +78,8 @@ namespace QiuQiu
         public Vector2 GetRandomPointInside(float margin = 0f)
         {
             Vector2 center = Center;
-
-            if (shape == ArenaShape.Circle)
-            {
-                float allowed = Mathf.Max(0f, circleRadius - margin);
-
-                // Square root, otherwise points pile up around the center.
-                float angle = Random.value * Mathf.PI * 2f;
-                float distance = allowed * Mathf.Sqrt(Random.value);
-
-                return center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
-            }
-
             Vector2 half = HalfSize;
+
             float innerX = Mathf.Max(0f, half.x - margin);
             float innerY = Mathf.Max(0f, half.y - margin);
 
@@ -172,24 +133,16 @@ namespace QiuQiu
         private void RefreshBorder()
         {
             if (border == null) return;
-            border.Refresh(borderColor, borderWidth, shape == ArenaShape.Circle, Center, HalfSize, circleRadius);
+            border.Refresh(borderColor, borderWidth, Center, HalfSize);
         }
 
         // Editor preview; the runtime line is drawn by ArenaBorder.
         private void OnDrawGizmos()
         {
             Vector2 center = Center;
-            Gizmos.color = new Color(0.4f, 0.9f, 1f, 0.85f);
-
-            if (shape == ArenaShape.Circle)
-            {
-                Gizmos.DrawWireSphere(center, circleRadius);
-                Gizmos.DrawLine(center + Vector2.left * circleRadius, center + Vector2.right * circleRadius);
-                Gizmos.DrawLine(center + Vector2.down * circleRadius, center + Vector2.up * circleRadius);
-                return;
-            }
-
             Vector2 half = HalfSize;
+
+            Gizmos.color = new Color(0.4f, 0.9f, 1f, 0.85f);
             Gizmos.DrawWireCube(center, new Vector3(half.x * 2f, half.y * 2f, 0.1f));
         }
 
@@ -197,7 +150,6 @@ namespace QiuQiu
         {
             rectangleSize.x = Mathf.Max(1f, rectangleSize.x);
             rectangleSize.y = Mathf.Max(1f, rectangleSize.y);
-            circleRadius = Mathf.Max(1f, circleRadius);
             pushBackStrength = Mathf.Max(0f, pushBackStrength);
             maxPushBackSpeed = Mathf.Max(0f, maxPushBackSpeed);
 

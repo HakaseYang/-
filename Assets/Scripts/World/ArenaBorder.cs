@@ -2,8 +2,7 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Runtime outline of the arena. Added by ArenaManager.Awake, never placed by hand.
-    [DisallowMultipleComponent]
+
     public class ArenaBorder : MonoBehaviour
     {
         private const int BorderSortingOrder = 200;   // above balls and food
@@ -12,7 +11,10 @@ namespace QiuQiu
 
         public void Refresh(Color color, float width, Vector2 center, Vector2 halfSize)
         {
-            if (line == null) CreateLine();
+            if (line == null)
+            {
+                CreateLine();
+            }
 
             ApplyStyle(color, width);
             RebuildPositions(center, halfSize);
@@ -22,12 +24,15 @@ namespace QiuQiu
         {
             line = gameObject.AddComponent<LineRenderer>();
             line.useWorldSpace = true;
-            line.loop = true;
+            line.loop = true;   //make 4 point connect auto
             line.positionCount = 4;
             line.sortingOrder = BorderSortingOrder;
 
             Shader shader = Shader.Find("Sprites/Default");
-            if (shader != null) line.material = new Material(shader);
+            if (shader != null)
+            {
+                line.material = new Material(shader);
+            }
         }
 
         private void ApplyStyle(Color color, float width)
@@ -37,7 +42,20 @@ namespace QiuQiu
             line.startColor = color;
             line.endColor = color;
 
-            if (line.material != null) line.material.color = color;
+            // Sprites/Default multiplies vertex color by _Color. Keep the material white,
+            // otherwise the final color becomes color * color (darker and more saturated).
+            if (line.material != null)
+            {
+                line.material.color = Color.white;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (line != null && line.material != null)
+            {
+                Destroy(line.material);
+            }
         }
 
         // Clockwise from bottom-left; loop closes the rectangle.

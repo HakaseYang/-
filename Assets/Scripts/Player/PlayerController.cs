@@ -685,7 +685,7 @@ namespace QiuQiu
                 return null;
             }
 
-            GameObject go = BallFactory.CreateBall(ballName, position, mass, sprite, color, Team.Player, 10);
+            GameObject go = BallFactory.CreateBall(ballName, position, mass, sprite, color, Team.Player);
             go.tag = "Player";
 
             SizeController ball = go.GetComponent<SizeController>();

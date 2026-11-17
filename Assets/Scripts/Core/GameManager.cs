@@ -378,7 +378,7 @@ namespace QiuQiu
             string aiName = $"AI_{aiSpawnCounter:00}"; // for check
             aiSpawnCounter++;
 
-            var go = BallFactory.CreateBall(aiName, position, mass, playerSprite, color, aiTeam, 10);
+            var go = BallFactory.CreateBall(aiName, position, mass, playerSprite, color, aiTeam);
 
             var ai = go.AddComponent<AIController>();
             

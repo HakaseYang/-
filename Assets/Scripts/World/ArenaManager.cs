@@ -2,18 +2,12 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Soft arena boundary. No wall colliders: each physics frame we clamp the ball
-    // back inside and remove the outward part of its velocity, so it slides along
-    // the edge instead of fighting the physics solver.
-    // Put one on a scene object; it registers itself as a singleton.
-    [DisallowMultipleComponent]
     public class ArenaManager : MonoBehaviour
     {
         public static ArenaManager Instance { get; private set; }
 
         [Header("Shape")]
-        [SerializeField] private Vector2 rectangleSize = new Vector2(50f, 50f);
-        [SerializeField] private Transform centerOverride;
+        [SerializeField] private Vector2 rectangleSize = new Vector2(60f, 60f);
 
         [Header("Border Behaviour")]
         [SerializeField] private bool clampPosition = true;
@@ -27,10 +21,8 @@ namespace QiuQiu
 
         private ArenaBorder border;
 
-        public Vector2 Center
-        {
-            get { return centerOverride != null ? (Vector2)centerOverride.position : (Vector2)transform.position; }
-        }
+        // Arena center is the object's own position; nothing else moves it.
+        public Vector2 Center { get { return (Vector2)transform.position; } }
 
         public Vector2 HalfSize { get { return rectangleSize * 0.5f; } }
 

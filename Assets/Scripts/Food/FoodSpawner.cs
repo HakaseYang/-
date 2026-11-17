@@ -166,7 +166,7 @@ namespace QiuQiu
 
             if (arena != null)
             {
-                Vector2 point = arena.GetRandomPointInside(null, arenaEdgePadding + 0.6f);
+                Vector2 point = arena.GetRandomPointInside(arenaEdgePadding + 0.6f);
                 return new Vector3(point.x, point.y, 0f);
             }
 

@@ -283,7 +283,7 @@ namespace QiuQiu
                 Vector3 candidate = fallback;
                 if (ArenaManager.Instance != null)
                 {
-                    candidate = ArenaManager.Instance.GetRandomPointInside(null, 2f);
+                    candidate = ArenaManager.Instance.GetRandomPointInside(2f);
                 }
 
                 if (!IsBlocked(candidate, threatMass, safeRadius, all)) return candidate;
@@ -370,7 +370,7 @@ namespace QiuQiu
                 : Color.red;
 
             Vector3 position = ArenaManager.Instance != null
-                ? ArenaManager.Instance.GetRandomPointInside(null, 1.5f)
+                ? ArenaManager.Instance.GetRandomPointInside(1.5f)
                 : Vector3.zero;
 
             position = FindSafeSpawnPoint(mass, position);

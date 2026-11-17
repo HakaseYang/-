@@ -2,24 +2,10 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// 世界边界（软边界）。
-    ///
-    /// 为什么不用“死墙”（BoxCollider2D 围墙）？
-    ///   1. 球是 Dynamic Rigidbody2D，被墙挡住时物理求解器要在接触点上反复迭代，
-    ///      玩家一直顶着墙走会出现抖动、卡住、甚至被弹飞；
-    ///   2. 高倍速 + 大体型下，墙体厚度不够还会出现“穿墙”（虽然可以用 Continuous 缓解，
-    ///      但代价是性能）；
-    ///   3. 球越大越容易被墙“卡”在角落里，手感很差。
-    ///
-    /// 这里的做法（位置纠正 + 速度投影，属于“软边界”）：
-    ///   1. 每个物理帧检查球心是否越界，越界就把位置直接纠正回边界内侧（等价于 Mathf.Clamp）；
-    ///   2. 把速度里“朝外”的那个分量减掉（相当于贴着墙滑行，而不是撞墙停下）；
-    ///   3. 再补一点点朝内的推力，让球离开边界时更顺滑，不会一直贴着边缘。
-    ///   全程不产生物理碰撞，所以既不会有求解器抖动，也不会有性能开销。
-    ///
-    /// 使用方式：场景里放一个挂本组件的物体即可（单例，自己注册）。
-    /// </summary>
+    // Soft arena boundary. No wall colliders: each physics frame we clamp the ball
+    // back inside and remove the outward part of its velocity, so it slides along
+    // the edge instead of fighting the physics solver.
+    // Put one on a scene object; it registers itself as a singleton.
     [DisallowMultipleComponent]
     public class ArenaManager : MonoBehaviour
     {
@@ -31,53 +17,42 @@ namespace QiuQiu
 
         public static ArenaManager Instance { get; private set; }
 
-        [Header("形状")]
-        [Tooltip("矩形 = 长宽可分别设置；圆形 = 只用半径。")]
+        [Header("Shape")]
         [SerializeField] private ArenaShape shape = ArenaShape.Rectangle;
-
-        [Tooltip("矩形竞技区的完整尺寸（宽, 高），单位：世界单位。")]
         [SerializeField] private Vector2 rectangleSize = new Vector2(50f, 50f);
-
-        [Tooltip("圆形竞技区的半径。")]
         [SerializeField] private float circleRadius = 30f;
-
-        [Tooltip("竞技区中心点（留空则用本物体的位置）。")]
         [SerializeField] private Transform centerOverride;
 
-        [Header("边界行为")]
-        [Tooltip("越界时是否直接把坐标夹回边界内侧（关掉则只靠推回速度，球能短暂冲出边界）。")]
+        [Header("Border Behaviour")]
         [SerializeField] private bool clampPosition = true;
-
-        [Tooltip("越界越深时额外的朝内推力（单位/秒），让球快速离开边缘。设 0 表示只做速度投影。")]
         [SerializeField] private float pushBackStrength = 4f;
-
-        [Tooltip("推回速度的上限，避免越界太深时产生一次猛烈弹射。")]
         [SerializeField] private float maxPushBackSpeed = 8f;
 
-        [Header("边缘可视化")]
-        [Tooltip("运行时用 LineRenderer 画出边界线（方便调试，正式版可关）。")]
+        [Header("Border Visual")]
         [SerializeField] private bool drawBorder = true;
-
         [SerializeField] private Color borderColor = new Color(0.45f, 0.75f, 1f, 0.65f);
-
-        [Tooltip("边界线宽度（世界单位）。")]
         [SerializeField] private float borderWidth = 0.12f;
 
-        private LineRenderer borderLine;
+        private ArenaBorder border;
 
-        public ArenaShape Shape => shape;
-        public Vector2 Center => centerOverride != null ? (Vector2)centerOverride.position : (Vector2)transform.position;
+        public Vector2 Center
+        {
+            get { return centerOverride != null ? (Vector2)centerOverride.position : (Vector2)transform.position; }
+        }
 
-        /// <summary>矩形的半尺寸（宽/2, 高/2）。圆形下为 (radius, radius)。</summary>
-        public Vector2 HalfSize => shape == ArenaShape.Rectangle
-            ? rectangleSize * 0.5f
-            : new Vector2(circleRadius, circleRadius);
+        public Vector2 HalfSize
+        {
+            get
+            {
+                if (shape == ArenaShape.Circle) return new Vector2(circleRadius, circleRadius);
+                return rectangleSize * 0.5f;
+            }
+        }
 
         private void Awake()
         {
             Instance = this;
-
-            if (drawBorder) CreateBorderLine();
+            if (drawBorder) CreateBorder();
         }
 
         private void OnDestroy()
@@ -85,9 +60,7 @@ namespace QiuQiu
             if (Instance == this) Instance = null;
         }
 
-        // ------------------------------ 查询 ------------------------------
-
-        /// <summary>点（考虑半径为 radius 的球）是否完全落在竞技区内。</summary>
+        // Is the point (plus a ball radius) fully inside the arena.
         public bool IsInside(Vector2 position, float radius = 0f)
         {
             Vector2 center = Center;
@@ -104,8 +77,7 @@ namespace QiuQiu
                    position.y <= center.y + half.y - radius;
         }
 
-        /// <summary>把一个点（考虑球半径）夹到竞技区内。</summary>
-        public Vector2 ClampPosition(Vector2 position, float radius = 0f)
+        private Vector2 ClampPosition(Vector2 position, float radius)
         {
             Vector2 center = Center;
 
@@ -123,30 +95,25 @@ namespace QiuQiu
             float minY = center.y - half.y + radius;
             float maxY = center.y + half.y - radius;
 
-            // 边界比球还小的极端情况：直接压到中心
+            // Arena smaller than the ball: pin it to the center.
             if (minX > maxX) { minX = maxX = center.x; }
             if (minY > maxY) { minY = maxY = center.y; }
 
             return new Vector2(Mathf.Clamp(position.x, minX, maxX), Mathf.Clamp(position.y, minY, maxY));
         }
 
-        /// <summary>
-        /// 在竞技区内部随机取一个点。
-        /// margin 是“离边界至少多远”，一般传球的半径，避免一生成就压线。
-        /// </summary>
-        public Vector2 GetRandomPointInside(System.Random rng, float margin = 0f)
+        // Random point inside the arena, kept at least margin away from the edge.
+        public Vector2 GetRandomPointInside(float margin = 0f)
         {
-            if (rng == null) rng = new System.Random();
-
             Vector2 center = Center;
 
             if (shape == ArenaShape.Circle)
             {
                 float allowed = Mathf.Max(0f, circleRadius - margin);
 
-                // 圆内均匀分布：半径要开平方，否则点会往圆心聚集
-                float angle = (float)(rng.NextDouble() * Mathf.PI * 2.0);
-                float distance = allowed * Mathf.Sqrt((float)rng.NextDouble());
+                // Square root, otherwise points pile up around the center.
+                float angle = Random.value * Mathf.PI * 2f;
+                float distance = allowed * Mathf.Sqrt(Random.value);
 
                 return center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
             }
@@ -155,26 +122,13 @@ namespace QiuQiu
             float innerX = Mathf.Max(0f, half.x - margin);
             float innerY = Mathf.Max(0f, half.y - margin);
 
-            float x = ((float)rng.NextDouble() * 2f - 1f) * innerX;
-            float y = ((float)rng.NextDouble() * 2f - 1f) * innerY;
+            float x = (Random.value * 2f - 1f) * innerX;
+            float y = (Random.value * 2f - 1f) * innerY;
 
             return center + new Vector2(x, y);
         }
 
-        /// <summary>边界内可用面积占比（圆形下用包围盒近似，给 FPS/Mass 估算用）。</summary>
-        public Vector2 Size => shape == ArenaShape.Rectangle
-            ? rectangleSize
-            : new Vector2(circleRadius * 2f, circleRadius * 2f);
-
-        // ------------------------------ 物理约束 ------------------------------
-
-        /// <summary>
-        /// 把一个刚体约束在竞技区内。每个物理帧在 FixedUpdate 里调用。
-        /// 返回 true 表示这一帧做了越界纠正。
-        ///
-        /// 关键点：只改 position 和 velocity，不加任何 Collider，因此不会触发物理碰撞、
-        /// 不会被物理求解器反复修正，性能和手感都好。
-        /// </summary>
+        // Called from each ball's FixedUpdate. Returns true when it had to correct something.
         public bool Constrain(Rigidbody2D body, float radius)
         {
             if (body == null) return false;
@@ -182,31 +136,26 @@ namespace QiuQiu
             Vector2 position = body.position;
             Vector2 clamped = ClampPosition(position, radius);
 
-            if ((clamped - position).sqrMagnitude < 0.000001f)
-            {
-                // 已经在界内，什么都不用做
-                return false;
-            }
+            if ((clamped - position).sqrMagnitude < 1e-6f) return false;
 
-            Vector2 inward = (clamped - position).normalized;   // 朝内的方向
+            Vector2 inward = (clamped - position).normalized;
             float overflow = Vector2.Distance(position, clamped);
 
             if (clampPosition) body.position = clamped;
 
             Vector2 velocity = body.linearVelocity;
 
-            // 1) 减掉朝外的速度分量：球沿着边界滑行，而不是被“撞停”
+            // Remove the outward part so the ball slides along the edge.
             float outwardSpeed = Vector2.Dot(velocity, -inward);
             if (outwardSpeed > 0f) velocity += inward * outwardSpeed;
 
-            // 2) 补一点朝内的推力（越界越深越强，但有上限），让它尽快离开边缘
+            // Add a small inward push, capped, so it leaves the edge instead of hugging it.
             if (pushBackStrength > 0f)
             {
                 float push = Mathf.Min(pushBackStrength * overflow, maxPushBackSpeed);
-                Vector2 inwardVelocity = inward * push;
-
-                // 不覆盖玩家已有的同向速度，只做“至少要有这么快”的补偿
                 float currentInward = Vector2.Dot(velocity, inward);
+
+                // Never slow a ball that is already moving inward faster than the push.
                 if (currentInward < push) velocity += inward * (push - currentInward);
             }
 
@@ -214,81 +163,34 @@ namespace QiuQiu
             return true;
         }
 
-        // ------------------------------ 可视化 ------------------------------
-
-        private void CreateBorderLine()
+        private void CreateBorder()
         {
-            borderLine = gameObject.AddComponent<LineRenderer>();
-            borderLine.useWorldSpace = true;
-            borderLine.loop = true;
-            borderLine.startWidth = borderWidth;
-            borderLine.endWidth = borderWidth;
-            borderLine.positionCount = shape == ArenaShape.Circle ? 64 : 4;
-
-            var shader = Shader.Find("Sprites/Default");
-            if (shader != null)
-            {
-                borderLine.material = new Material(shader);
-                borderLine.material.color = borderColor;
-            }
-
-            borderLine.startColor = borderColor;
-            borderLine.endColor = borderColor;
-            borderLine.sortingOrder = 200;   // 画在球和食物之上
-
-            UpdateBorderPositions();
+            border = gameObject.AddComponent<ArenaBorder>();
+            RefreshBorder();
         }
 
-        private void UpdateBorderPositions()
+        private void RefreshBorder()
         {
-            if (borderLine == null) return;
-
-            Vector2 center = Center;
-
-            if (shape == ArenaShape.Circle)
-            {
-                if (borderLine.positionCount != 64) borderLine.positionCount = 64;
-
-                for (int i = 0; i < 64; i++)
-                {
-                    float angle = (float)i / 64f * Mathf.PI * 2f;
-                    borderLine.SetPosition(i, new Vector3(
-                        center.x + Mathf.Cos(angle) * circleRadius,
-                        center.y + Mathf.Sin(angle) * circleRadius,
-                        0f));
-                }
-            }
-            else
-            {
-                if (borderLine.positionCount != 4) borderLine.positionCount = 4;
-
-                Vector2 half = HalfSize;
-                borderLine.SetPosition(0, new Vector3(center.x - half.x, center.y - half.y, 0f));
-                borderLine.SetPosition(1, new Vector3(center.x - half.x, center.y + half.y, 0f));
-                borderLine.SetPosition(2, new Vector3(center.x + half.x, center.y + half.y, 0f));
-                borderLine.SetPosition(3, new Vector3(center.x + half.x, center.y - half.y, 0f));
-            }
+            if (border == null) return;
+            border.Refresh(borderColor, borderWidth, shape == ArenaShape.Circle, Center, HalfSize, circleRadius);
         }
 
+        // Editor preview; the runtime line is drawn by ArenaBorder.
         private void OnDrawGizmos()
         {
             Vector2 center = Center;
-
             Gizmos.color = new Color(0.4f, 0.9f, 1f, 0.85f);
 
             if (shape == ArenaShape.Circle)
             {
                 Gizmos.DrawWireSphere(center, circleRadius);
-
-                // 画十字辅助线，方便看清圆心
                 Gizmos.DrawLine(center + Vector2.left * circleRadius, center + Vector2.right * circleRadius);
                 Gizmos.DrawLine(center + Vector2.down * circleRadius, center + Vector2.up * circleRadius);
+                return;
             }
-            else
-            {
-                Vector2 half = HalfSize;
-                Gizmos.DrawWireCube(center, new Vector3(half.x * 2f, half.y * 2f, 0.1f));
-            }
+
+            Vector2 half = HalfSize;
+            Gizmos.DrawWireCube(center, new Vector3(half.x * 2f, half.y * 2f, 0.1f));
         }
 
         private void OnValidate()
@@ -299,7 +201,7 @@ namespace QiuQiu
             pushBackStrength = Mathf.Max(0f, pushBackStrength);
             maxPushBackSpeed = Mathf.Max(0f, maxPushBackSpeed);
 
-            if (Application.isPlaying) UpdateBorderPositions();
+            RefreshBorder();
         }
     }
 }

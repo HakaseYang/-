@@ -29,7 +29,10 @@ namespace QiuQiu
         private void Awake()
         {
             Instance = this;
-            if (drawBorder) CreateBorder();
+            if (drawBorder)
+            {
+                CreateBorder();
+            }
         }
 
         private void OnDestroy()
@@ -37,7 +40,7 @@ namespace QiuQiu
             if (Instance == this) Instance = null;
         }
 
-        // Is the point (plus a ball radius) fully inside the arena.
+        // ball fully inside the arena?
         public bool IsInside(Vector2 position, float radius = 0f)
         {
             Vector2 center = Center;
@@ -60,13 +63,19 @@ namespace QiuQiu
             float maxY = center.y + half.y - radius;
 
             // Arena smaller than the ball: pin it to the center.
-            if (minX > maxX) { minX = maxX = center.x; }
-            if (minY > maxY) { minY = maxY = center.y; }
+            if (minX > maxX) 
+            {
+                minX = maxX = center.x; 
+            }
+            if (minY > maxY)
+            { 
+                minY = maxY = center.y; 
+            }
 
             return new Vector2(Mathf.Clamp(position.x, minX, maxX), Mathf.Clamp(position.y, minY, maxY));
         }
 
-        // Random point inside the arena, kept at least margin away from the edge.
+        // for Spaen AI
         public Vector2 GetRandomPointInside(float margin = 0f)
         {
             Vector2 center = Center;
@@ -82,38 +91,60 @@ namespace QiuQiu
         }
 
         // Called from each ball's FixedUpdate. Returns true when it had to correct something.
-        public bool Constrain(Rigidbody2D body, float radius)
+        public void Constrain(Rigidbody2D body, float radius)
         {
-            if (body == null) return false;
+            if (body == null)
+            {
+                return ;
+            }
 
             Vector2 position = body.position;
             Vector2 clamped = ClampPosition(position, radius);
 
-            if ((clamped - position).sqrMagnitude < 1e-6f) return false;
-
+            //only Compare distance between two points(avoid the square root (sqrt) operation)
+            //1e-6 =0.001
+            //the ball is less than 1 millimeter off its legal position = not gone out
+            //to avoid after do
+            if ((clamped - position).sqrMagnitude < 1e-6f)
+            {
+                return ;
+            }
+            //get direction in area(go back)
             Vector2 inward = (clamped - position).normalized;
             float overflow = Vector2.Distance(position, clamped);
 
-            if (clampPosition) body.position = clamped;
+            if (clampPosition)
+            {
+                body.position = clamped;
+            }
 
             Vector2 velocity = body.linearVelocity;
 
-            // Remove the outward part so the ball slides along the edge.
+            // Remove the outward part(speed) so the ball slides along the edge.
+            // Vector2.Dot get Two vectors point to(direction)
+            //Vector2.Dot > get +x =ball go out area; -x go in area direction
             float outwardSpeed = Vector2.Dot(velocity, -inward);
-            if (outwardSpeed > 0f) velocity += inward * outwardSpeed;
+            //if go out
+            if (outwardSpeed > 0f)
+            {
+                // to discharge velocity go out area(need add back go in speed )
+                velocity += inward * outwardSpeed;
+            }
 
-            // Add a small inward push, capped, so it leaves the edge instead of hugging it.
+            // Add a small inward push, capped, so it leaves the edge .
             if (pushBackStrength > 0f)
             {
                 float push = Mathf.Min(pushBackStrength * overflow, maxPushBackSpeed);
                 float currentInward = Vector2.Dot(velocity, inward);
 
-                // Never slow a ball that is already moving inward faster than the push.
-                if (currentInward < push) velocity += inward * (push - currentInward);
+                // if ball  is already moving inward faster than the push.then don;t push it
+                if (currentInward < push)
+                {
+                    velocity += inward * (push - currentInward);
+                }
             }
 
             body.linearVelocity = velocity;
-            return true;
         }
 
         private void CreateBorder()
@@ -124,11 +155,14 @@ namespace QiuQiu
 
         private void RefreshBorder()
         {
-            if (border == null) return;
+            if (border == null)
+            {
+                return;
+            }
             border.Refresh(borderColor, borderWidth, Center, HalfSize);
         }
 
-        // Editor preview; the runtime line is drawn by ArenaBorder.
+        // Editor preview; the runtime line is drawn by ArenaBorder.(just for test)
         private void OnDrawGizmos()
         {
             Vector2 center = Center;
@@ -136,16 +170,6 @@ namespace QiuQiu
 
             Gizmos.color = new Color(0.4f, 0.9f, 1f, 0.85f);
             Gizmos.DrawWireCube(center, new Vector3(half.x * 2f, half.y * 2f, 0.1f));
-        }
-
-        private void OnValidate()
-        {
-            rectangleSize.x = Mathf.Max(1f, rectangleSize.x);
-            rectangleSize.y = Mathf.Max(1f, rectangleSize.y);
-            pushBackStrength = Mathf.Max(0f, pushBackStrength);
-            maxPushBackSpeed = Mathf.Max(0f, maxPushBackSpeed);
-
-            RefreshBorder();
         }
     }
 }

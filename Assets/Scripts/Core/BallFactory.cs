@@ -24,7 +24,6 @@ namespace QiuQiu
             rb.angularDamping = 0f;
             rb.freezeRotation = true;
             rb.interpolation = RigidbodyInterpolation2D.Interpolate;
-            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             // damping eats leftover speed from splits and knockback, so balls don't drift forever
             rb.linearDamping = DefaultLinearDamping;
 
@@ -54,9 +53,8 @@ namespace QiuQiu
             // food body is kinematic; spit food flies, so make it dynamic and let damping slow it
             Rigidbody2D rb = go.GetComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Dynamic;
-            rb.gravityScale = 0f;   // dynamic body would fall without this
+            rb.gravityScale = 0f;   
             rb.linearDamping = 1.8f;
-            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             rb.linearVelocity = velocity;
             return go;
         }
@@ -91,7 +89,7 @@ namespace QiuQiu
             return go;
         }
 
-        // sqrt growth, hard clamped so a big spit ball stays readable
+        
         private static float FoodDiameter(float mass)
         {
             return Mathf.Clamp(FoodDiameterAtMass1 * Mathf.Sqrt(Mathf.Max(mass, 0.01f)), 0.18f, 1.2f);

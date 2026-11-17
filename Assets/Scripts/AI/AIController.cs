@@ -135,7 +135,6 @@ namespace QiuQiu
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
             rb.interpolation = RigidbodyInterpolation2D.Interpolate;
-            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
             scanBufferSize = Mathf.Clamp(scanBufferSize, 4, 128);
             scanBuffer = new Collider2D[scanBufferSize];

@@ -15,6 +15,12 @@ namespace QiuQiu
         public static int Created { get { return created; } }
         public static int FreeCount { get { return free.Count; } }
 
+        // let the scene own the container: live food and parked shells then share one parent
+        public static void UseRoot(Transform container)
+        {
+            root = container;
+        }
+
         // the container must stay active, otherwise reactivating a child would not render
         private static Transform Root
         {

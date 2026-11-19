@@ -5,8 +5,7 @@ namespace QiuQiu
     public class FoodSpawner : MonoBehaviour
     {
         [Header("Area")]
-        [SerializeField] private float borderMargin = 1f;   // keep food clear of the arena edge
-
+        [SerializeField] private float borderMargin = 1f;   // Minimum distance from the food center to the site boundary
         [Header("Count")]
         [SerializeField] private int maxFoodCount = 500;
         [SerializeField] private bool fillOnStart = true;
@@ -48,6 +47,14 @@ namespace QiuQiu
             }
 
             nextCheckTime = Time.time + checkInterval;
+
+            // one shared container for live food and parked shells, so Hierarchy stays readable
+            if (foodParent != null && !foodParent.gameObject.activeInHierarchy)
+            {
+                Debug.LogWarning("[FoodSpawner] foodParent is inactive, food will be invisible");
+            }
+
+            FoodPool.UseRoot(foodParent);
 
             // shells up front: after this, a bite recycles an object instead of allocating one
             FoodPool.Prewarm(maxFoodCount);

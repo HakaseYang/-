@@ -124,11 +124,7 @@ namespace QiuQiu
                     ? palette[Random.Range(0, palette.Length)]
                     : Color.green;
 
-                GameObject go = BallFactory.CreateFood(point, mass, foodSprite, color);
-                if (foodParent != null)
-                {
-                    go.transform.SetParent(foodParent, true);
-                }
+                BallFactory.CreateFood(point, mass, foodSprite, color, foodParent);
                 return true;
             }
 

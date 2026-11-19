@@ -40,13 +40,13 @@ namespace QiuQiu
             return go;
         }
 
-        public static GameObject CreateFood(Vector3 position, float mass, Sprite sprite, Color color)
+        public static GameObject CreateFood(Vector3 position, float mass, Sprite sprite, Color color, Transform parent)
         {
             
             Edible edible = FoodPool.Take();
             GameObject go = edible.gameObject;
 
-            go.transform.SetParent(null, false);
+            go.transform.SetParent(parent, true);   // one parent change per spawn, not two
             go.transform.position = position;
             go.transform.localScale = Vector3.one * FoodDiameter(mass);
 

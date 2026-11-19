@@ -40,30 +40,32 @@ namespace QiuQiu
 
             if (foodSprite == null && player != null)
             {
-                // no sprite assigned: borrow the ball sprite so food is at least visible
                 SpriteRenderer sr = player.GetComponent<SpriteRenderer>();
-                if (sr != null) foodSprite = sr.sprite;
+                if (sr != null)
+                {
+                    foodSprite = sr.sprite;
+                }
             }
 
-            nextCheckTime = Time.time + checkInterval;
+            nextCheckTime = Time.time + checkInterval; //avoid add food again
 
-            // one shared container for live food and parked shells, so Hierarchy stays readable
+            
             if (foodParent != null && !foodParent.gameObject.activeInHierarchy)
             {
                 Debug.LogWarning("[FoodSpawner] foodParent is inactive, food will be invisible");
             }
 
             FoodPool.UseRoot(foodParent);
-
-            // shells up front: after this, a bite recycles an object instead of allocating one
+            //do 500 in pool
             FoodPool.Prewarm(maxFoodCount);
 
-            if (!fillOnStart) return;
-
-            // one shot fill, guarded so a missing sprite cannot spin here forever
-            int guard = 0;
-            while (Edible.ActiveCount < maxFoodCount && guard++ < maxFoodCount)
+            if (!fillOnStart)
             {
+                return;
+            }
+            for (int i = 0; i < maxFoodCount; i++)
+            {
+                if (Edible.ActiveCount >= maxFoodCount) break;
                 if (!SpawnOne()) break;
             }
         }

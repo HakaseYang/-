@@ -28,7 +28,10 @@ namespace QiuQiu
                 return;
             }
 
-            self.TryEat(target);
+            if (self.TryEat(target))
+            {
+                AudioManager.Instance.PlayEatEnemy();
+            }
         }
     }
 }

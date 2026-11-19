@@ -69,7 +69,12 @@ namespace QiuQiu
             }
 
             consumed = true;
-            eater.AddMassFromEat(mass);   
+            eater.AddMassFromEat(mass);
+
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayEatFood();
+            }
 
             if (poolable)
             {

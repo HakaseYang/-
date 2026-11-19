@@ -54,6 +54,10 @@ namespace QiuQiu
             }
 
             nextCheckTime = Time.time + checkInterval;
+
+            // shells up front: after this, a bite recycles an object instead of allocating one
+            FoodPool.Prewarm(maxFoodCount);
+
             if (!fillOnStart) return;
 
             // one shot fill, guarded so a missing sprite cannot spin here forever

@@ -42,14 +42,44 @@ namespace QiuQiu
 
         public static GameObject CreateFood(string name, Vector3 position, float mass, Sprite sprite, Color color)
         {
-            return CreateFoodBase(name, position, mass, sprite, color, FoodOrder, 0f);
+            // pooled: take a recycled shell, dress it, then switch it on
+            Edible edible = FoodPool.Take();
+            GameObject go = edible.gameObject;
+
+            go.name = name;
+            go.transform.SetParent(null, false);
+            go.transform.position = position;
+            go.transform.localScale = Vector3.one * FoodDiameter(mass);
+
+            SpriteRenderer sr = go.GetComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.color = color;
+            sr.sortingOrder = FoodOrder;
+
+            edible.ResetForReuse(mass, 0f);
+            go.SetActive(true);
+            return go;
+        }
+
+        // pool hook: a bare inactive food shell; FoodPool recycles these instead of destroying
+        public static GameObject CreateFoodShell()
+        {
+            GameObject go = NewVisual("Food", Vector3.zero, null, Color.white, FoodOrder);
+            go.SetActive(false);
+
+            CircleCollider2D col = go.AddComponent<CircleCollider2D>();
+            col.radius = 0.5f;
+            col.isTrigger = true;
+
+            Edible edible = go.AddComponent<Edible>();
+            edible.MarkPoolable();
+            return go;
         }
 
         public static GameObject CreateSpitFood(string name, Vector3 position, Vector2 velocity, float mass, Sprite sprite, Color color, float armDelay)
         {
             GameObject go = CreateFoodBase(name, position, mass, sprite, color, SpitOrder, armDelay);
 
-            // spit food flies, so it needs its own body; plain food stays bodyless and lets the ball's body drive the trigger
             Rigidbody2D rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Dynamic;
             rb.gravityScale = 0f;
@@ -67,8 +97,6 @@ namespace QiuQiu
             col.radius = 0.5f;      
             col.isTrigger = true;
 
-            // no Rigidbody2D here: food never moves, and the dynamic ball on the other side
-            // is enough to raise OnTriggerEnter2D. Spit food adds its own body in CreateSpitFood.
             Edible edible = go.AddComponent<Edible>();
             edible.Initialize(mass, armDelay);
             return go;

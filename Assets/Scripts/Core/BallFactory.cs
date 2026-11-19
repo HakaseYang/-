@@ -40,13 +40,12 @@ namespace QiuQiu
             return go;
         }
 
-        public static GameObject CreateFood(string name, Vector3 position, float mass, Sprite sprite, Color color)
+        public static GameObject CreateFood(Vector3 position, float mass, Sprite sprite, Color color)
         {
             // pooled: take a recycled shell, dress it, then switch it on
             Edible edible = FoodPool.Take();
             GameObject go = edible.gameObject;
 
-            go.name = name;
             go.transform.SetParent(null, false);
             go.transform.position = position;
             go.transform.localScale = Vector3.one * FoodDiameter(mass);

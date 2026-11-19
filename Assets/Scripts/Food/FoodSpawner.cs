@@ -40,7 +40,6 @@ namespace QiuQiu
 
         private float nextCheckTime;
         private PlayerController player;
-        private int spawnCounter;
 
         private void Start()
         {
@@ -99,7 +98,7 @@ namespace QiuQiu
                     ? palette[Random.Range(0, palette.Length)]
                     : Color.green;
 
-                GameObject go = BallFactory.CreateFood($"Food_{spawnCounter++:000}", point, mass, foodSprite, color);
+                GameObject go = BallFactory.CreateFood(point, mass, foodSprite, color);
                 if (foodParent != null) go.transform.SetParent(foodParent, true);
                 return true;
             }

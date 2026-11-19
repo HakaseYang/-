@@ -17,10 +17,17 @@ namespace QiuQiu
         // let the scene own the container: live food and parked shells then share one parent
         public static void UseRoot(Transform container)
         {
+            if (container != root)
+            {
+                // a new scene means the old shells died with it, keep nothing stale
+                free.Clear();
+                created = 0;
+            }
+
             root = container;
         }
 
-        // the container must stay active, otherwise reactivating a child would not render
+        // for sure have Root
         private static Transform Root
         {
             get
@@ -39,9 +46,11 @@ namespace QiuQiu
         {
             while (free.Count > 0)
             {
-                // a pooled entry can die with the scene, so skip Unity-fake-null entries
                 Edible pooled = free.Pop();
-                if (pooled != null) return pooled;
+                if (pooled != null)
+                {
+                    return pooled;
+                }
             }
 
             GameObject go = BallFactory.CreateFoodShell();
@@ -51,15 +60,18 @@ namespace QiuQiu
 
         public static void Give(Edible edible)
         {
-            if (edible == null) return;
+            if (edible == null)
+            {
+                return;
+            }
 
-            // deactivating fires OnDisable, which decrements Edible.ActiveCount
+            // first SetActive to sure OnDisable work normal
             edible.gameObject.SetActive(false);
             edible.transform.SetParent(Root, false);
             free.Push(edible);
         }
 
-        // shell count up front, so the first bites do not allocate
+        //for start add 500 
         public static void Prewarm(int count)
         {
             while (created < count)
@@ -68,15 +80,6 @@ namespace QiuQiu
                 created++;
                 Give(go.GetComponent<Edible>());
             }
-        }
-
-        // play mode without domain reload keeps statics alive; this clears the stale stack
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetState()
-        {
-            free.Clear();
-            root = null;
-            created = 0;
         }
     }
 }

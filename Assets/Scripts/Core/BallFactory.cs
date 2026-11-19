@@ -21,7 +21,6 @@ namespace QiuQiu
             Rigidbody2D rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Dynamic;
             rb.gravityScale = 0f;
-            rb.angularDamping = 0f;
             rb.freezeRotation = true;
             rb.interpolation = RigidbodyInterpolation2D.Interpolate;
             // damping eats leftover speed from splits and knockback, so balls don't drift forever
@@ -50,10 +49,10 @@ namespace QiuQiu
         {
             GameObject go = CreateFoodBase(name, position, mass, sprite, color, SpitOrder, armDelay);
 
-            // food body is kinematic; spit food flies, so make it dynamic and let damping slow it
-            Rigidbody2D rb = go.GetComponent<Rigidbody2D>();
+            // spit food flies, so it needs its own body; plain food stays bodyless and lets the ball's body drive the trigger
+            Rigidbody2D rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Dynamic;
-            rb.gravityScale = 0f;   
+            rb.gravityScale = 0f;
             rb.linearDamping = 1.8f;
             rb.linearVelocity = velocity;
             return go;
@@ -65,13 +64,11 @@ namespace QiuQiu
             go.transform.localScale = Vector3.one * FoodDiameter(mass);
 
             CircleCollider2D col = go.AddComponent<CircleCollider2D>();
-            col.radius = 0.5f;      // local radius, scale makes the world size
+            col.radius = 0.5f;      
             col.isTrigger = true;
 
-            // kinematic so food never drifts when a ball bumps into it
-            Rigidbody2D rb = go.AddComponent<Rigidbody2D>();
-            rb.bodyType = RigidbodyType2D.Kinematic;
-
+            // no Rigidbody2D here: food never moves, and the dynamic ball on the other side
+            // is enough to raise OnTriggerEnter2D. Spit food adds its own body in CreateSpitFood.
             Edible edible = go.AddComponent<Edible>();
             edible.Initialize(mass, armDelay);
             return go;
@@ -91,7 +88,7 @@ namespace QiuQiu
 
         
         private static float FoodDiameter(float mass)
-        {
+        {   //food size 0.18f -1.2f
             return Mathf.Clamp(FoodDiameterAtMass1 * Mathf.Sqrt(Mathf.Max(mass, 0.01f)), 0.18f, 1.2f);
         }
     }

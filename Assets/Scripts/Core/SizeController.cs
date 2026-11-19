@@ -18,7 +18,7 @@ namespace QiuQiu
         [SerializeField] private float radiusAtReferenceMass = 0.75f;
 
         [Header("Eating Ball Threshold")]
-        [SerializeField, Range(1f, 2f)] private float eatMassRatio = 1.2f;   // 1.2 = 要到对方 120% 才吃得掉
+        [SerializeField, Range(1f, 2f)] private float eatMassRatio = 1.2f;   
 
         [Header("Team")]
         [SerializeField] private Team team = Team.Player;

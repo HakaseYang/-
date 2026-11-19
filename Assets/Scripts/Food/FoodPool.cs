@@ -3,11 +3,10 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Food churn is constant: every bite destroys an object and the spawner makes a new one.
-    // This pool recycles the shells instead. Inactive entries do not count in Edible.ActiveCount,
-    // so the spawner's "how much food is on the field" logic stays correct.
+    
     public static class FoodPool
     {
+        //save the item in (Stack)
         private static readonly Stack<Edible> free = new Stack<Edible>(512);
         private static Transform root;
         private static int created;

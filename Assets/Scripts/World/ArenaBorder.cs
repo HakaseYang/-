@@ -42,8 +42,6 @@ namespace QiuQiu
             line.startColor = color;
             line.endColor = color;
 
-            // Sprites/Default multiplies vertex color by _Color. Keep the material white,
-            // otherwise the final color becomes color * color (darker and more saturated).
             if (line.material != null)
             {
                 line.material.color = Color.white;

@@ -42,7 +42,7 @@ namespace QiuQiu
 
         public static GameObject CreateFood(Vector3 position, float mass, Sprite sprite, Color color)
         {
-            // pooled: take a recycled shell, dress it, then switch it on
+            
             Edible edible = FoodPool.Take();
             GameObject go = edible.gameObject;
 

@@ -16,7 +16,7 @@ namespace QiuQiu
 
         // Difficulty → Devour Multiplier
         private static readonly float[] PlayerEatTable = { 1.5f, 1f, 0.5f };
-        private static readonly float[] AiEatTable = { 0.5f, 1f, 1.5f };
+        private static readonly float[] AiEatTable = { 0.5f, 1f, 1.2f };
 
         // for check
         private static readonly string[] LogNames = { "Level 1 (Easy)", "Level 2 (Normal)", "Level 3 (Hard)" };

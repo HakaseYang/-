@@ -11,7 +11,7 @@ namespace QiuQiu
 
         private bool consumed;    //  one frame > only one
         private float armedAt;    //  avoid  own spits the ball then get back at once
-        private bool poolable;    //  set by FoodPool: recycle this instead of Destroy
+        private bool poolable;    //  set for  FoodPool to recycle 
 
         private static int activeCount; //allCount(now)
 
@@ -38,7 +38,7 @@ namespace QiuQiu
             armedAt = Time.time + Mathf.Max(0f, armDelay);
         }
 
-        // the pool hands this object out again: clear the state left by the last bite
+        // clear the state for set active again
         public void ResetForReuse(float massValue, float armDelay)
         {
             consumed = false;
@@ -52,8 +52,14 @@ namespace QiuQiu
 
         private void OnTriggerEnter2D(Collider2D other)
         {
-            if (consumed) return;
-            if (Time.time < armedAt) return;
+            if (consumed)
+            {
+                return;
+            }
+            if (Time.time < armedAt)
+            {
+                return;
+            }
 
             
             SizeController eater = other.GetComponentInParent<SizeController>();
@@ -71,7 +77,7 @@ namespace QiuQiu
             }
             else
             {
-                Destroy(gameObject);
+                Destroy(gameObject); //for ball spit  food
             }
         }
     }

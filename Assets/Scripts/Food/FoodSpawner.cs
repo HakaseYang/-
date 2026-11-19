@@ -65,22 +65,34 @@ namespace QiuQiu
             }
             for (int i = 0; i < maxFoodCount; i++)
             {
-                if (Edible.ActiveCount >= maxFoodCount) break;
-                if (!SpawnOne()) break;
+                if (Edible.ActiveCount >= maxFoodCount)
+                {
+                    break;
+                }
+
+                if (!SpawnOne())    //SetActive(500 food)
+                {
+                    break;
+                }
             }
         }
 
         private void Update()
         {
-            if (Time.time < nextCheckTime) return;
-            nextCheckTime = Time.time + Mathf.Max(0.05f, checkInterval);
+            if (Time.time < nextCheckTime)
+            {
+                return;
+            }
 
-            // Edible.ActiveCount is O(1); the old FindObjectsByType allocated an array every check.
-            // Spit food is Edible too, so it counts as food here - that is intended.
-            int missing = maxFoodCount - Edible.ActiveCount;
-            if (missing <= 0) return;
+            nextCheckTime = Time.time + checkInterval;
 
-            int budget = Mathf.Min(missing, Mathf.Max(1, maxSpawnsPerTick));
+            int missing = maxFoodCount - Edible.ActiveCount; //now food 
+            if (missing <= 0)
+            {
+                return;
+            }
+
+            int budget = Mathf.Min(missing, maxSpawnsPerTick);
             for (int i = 0; i < budget; i++)
             {
                 if (!SpawnOne()) break;
@@ -89,12 +101,23 @@ namespace QiuQiu
 
         private bool SpawnOne()
         {
-            if (foodSprite == null) return false;
-
-            for (int attempt = 0; attempt < Mathf.Max(1, placementAttempts); attempt++)
+            if (foodSprite == null)
             {
-                if (!TryPickPoint(out Vector3 point)) return false;
-                if (IsTooCloseToPlayer(point)) continue;
+                return false;
+            }
+
+            //try 8 time to place food
+            for (int attempt = 0; attempt < placementAttempts; attempt++)
+            {
+                if (!TryPickPoint(out Vector3 point))
+                {
+                    return false;
+                }
+
+                if (IsTooCloseToPlayer(point))
+                {
+                    continue;
+                }
 
                 float mass = Random.Range(minFoodMass, maxFoodMass);
                 Color color = palette != null && palette.Length > 0
@@ -102,21 +125,25 @@ namespace QiuQiu
                     : Color.green;
 
                 GameObject go = BallFactory.CreateFood(point, mass, foodSprite, color);
-                if (foodParent != null) go.transform.SetParent(foodParent, true);
+                if (foodParent != null)
+                {
+                    go.transform.SetParent(foodParent, true);
+                }
                 return true;
             }
 
-            return false;
+            return false; //8 time not have > false
         }
 
-        // ArenaManager.GetRandomPointInside already keeps the point inside the arena,
-        // so a second inside-check here would only re-test the same thing.
         private bool TryPickPoint(out Vector3 point)
         {
             point = Vector3.zero;
 
-            // no arena: refuse to spawn instead of stacking every food on this transform
-            if (ArenaManager.Instance == null) return false;
+
+            if (ArenaManager.Instance == null)
+            {
+                return false;
+            }
 
             Vector2 inside = ArenaManager.Instance.GetRandomPointInside(borderMargin);
             point = new Vector3(inside.x, inside.y, 0f);
@@ -125,17 +152,29 @@ namespace QiuQiu
 
         private bool IsTooCloseToPlayer(Vector3 point)
         {
-            // the controller survives a death and re-adopts the balls, but the field can go stale
-            if (player == null) player = PlayerController.Active;
-            if (player == null || minDistanceFromPlayer <= 0f) return false;
+            if (player == null)
+            {
+                player = PlayerController.Active;
+            }
+            if (player == null || minDistanceFromPlayer <= 0f)
+            {
+                return false;
+            }
 
+            //All play sub-smalland nurmal ball 
             var balls = player.Balls;
             for (int i = 0; i < balls.Count; i++)
             {
                 SizeController ball = balls[i];
-                if (ball == null || ball.IsDead) continue;
+                if (ball == null || ball.IsDead)
+                {
+                    continue;
+                }
 
-                if (Vector2.Distance(ball.transform.position, point) < minDistanceFromPlayer + ball.Radius) return true;
+                if (Vector2.Distance(ball.transform.position, point) < minDistanceFromPlayer + ball.Radius)
+                {
+                    return true;
+                }
             }
 
             return false;

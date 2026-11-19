@@ -634,6 +634,7 @@ namespace QiuQiu
 
             Debug.Log($"[分裂] 母球 {source.Mass + newMass:F0} → {source.Mass:F0} + 新球 {newMass:F0}，" +
                       $"球数 {activePlayerBalls.Count}/{maxBallCount}，初速度 {splitLaunchSpeed}");
+            AudioManager.Instance.PlaySplit();
             return true;
         }
 
@@ -668,6 +669,7 @@ namespace QiuQiu
 
             Debug.Log($"[吐球] 消耗 {spitMassCost:F0} 质量 → 吐出质量 {spitFoodMass:F0} 的食物，" +
                       $"速度 {spitLaunchSpeed}，剩余质量 {source.Mass:F0}");
+            AudioManager.Instance.PlaySpit();
             return true;
         }
 

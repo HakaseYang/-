@@ -117,6 +117,7 @@ namespace QiuQiu
             MainMenuController.ReportBestMass(peak);
 
             panelRoot.SetActive(true);
+            AudioManager.Instance.PlayGameOver();
 
             if (selectButtonOnShow && restartButton != null &&
                 UnityEngine.EventSystems.EventSystem.current != null)
@@ -134,6 +135,9 @@ namespace QiuQiu
         /// <summary>重新开始（按钮 OnClick 与外部都调这个）。</summary>
         public void Restart()
         {
+            AudioManager.Instance.PlayUIClick();
+            AudioManager.Instance.PlayBGM();
+
             if (restartDelay > 0f)
             {
                 pendingRestartAt = Time.unscaledTime + restartDelay;
@@ -167,6 +171,9 @@ namespace QiuQiu
         /// <summary>返回主菜单（按钮 OnClick 与外部都调这个）。</summary>
         public void BackToMenu()
         {
+            AudioManager.Instance.PlayUIClick();
+            AudioManager.Instance.PlayBGM();
+
             // 结算时 timeScale = 0，离开前必须复位，否则主菜单是定格的
             Time.timeScale = 1f;
             AudioListener.pause = false;

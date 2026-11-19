@@ -29,6 +29,8 @@ namespace QiuQiu
         /// <summary>按钮 1~3 的统一入口：level = 1/2/3。</summary>
         public void Play(int level)
         {
+            AudioManager.Instance.PlayUIClick();
+
             GameSettings.SetDifficulty(level);
 
             DifficultyLevel current = GameSettings.Difficulty;
@@ -46,6 +48,7 @@ namespace QiuQiu
         /// <summary>退出游戏：编辑器里只是停止播放，真机才真正退出。</summary>
         public void QuitGame()
         {
+            AudioManager.Instance.PlayUIClick();
             Debug.Log("[主菜单] 退出游戏");
 
 #if UNITY_EDITOR

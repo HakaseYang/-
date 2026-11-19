@@ -50,7 +50,8 @@ namespace QiuQiu
             }
 
             consumed = true;
-            eater.AddMassFromEat(mass);   
+            eater.AddMassFromEat(mass);
+            AudioManager.Instance.PlayEatFood();
             Destroy(gameObject);
         }
     }

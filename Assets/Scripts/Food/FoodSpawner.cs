@@ -33,7 +33,6 @@ namespace QiuQiu
 
         private float nextCheckTime;
         private PlayerController player;
-        private bool warnedNoArena;
 
         private void Start()
         {
@@ -114,17 +113,8 @@ namespace QiuQiu
         {
             point = Vector3.zero;
 
-            if (ArenaManager.Instance == null)
-            {
-                // no arena: refuse to spawn instead of stacking every food on this transform
-                if (!warnedNoArena)
-                {
-                    warnedNoArena = true;
-                    Debug.LogError("[FoodSpawner] no ArenaManager in the scene, food spawning is disabled");
-                }
-
-                return false;
-            }
+            // no arena: refuse to spawn instead of stacking every food on this transform
+            if (ArenaManager.Instance == null) return false;
 
             Vector2 inside = ArenaManager.Instance.GetRandomPointInside(borderMargin);
             point = new Vector3(inside.x, inside.y, 0f);

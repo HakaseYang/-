@@ -2,16 +2,10 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Keeps the arena stocked: every checkInterval seconds it tops the food up to maxFoodCount.
-    // Topping up (instead of spawning on a timer) keeps the object count flat on mobile,
-    // and maxSpawnsPerTick caps how much work a single frame can do.
     public class FoodSpawner : MonoBehaviour
     {
         [Header("Area")]
-        [SerializeField] private Vector2 areaCenter = Vector2.zero;
-        [SerializeField] private Vector2 areaSize = new Vector2(44f, 30f);
-        [SerializeField] private bool useArenaBounds = true;
-        [SerializeField] private float arenaEdgePadding = 0.4f;
+        [SerializeField] private float borderMargin = 1f;   // keep food clear of the arena edge
 
         [Header("Count")]
         [SerializeField] private int maxFoodCount = 500;
@@ -40,6 +34,7 @@ namespace QiuQiu
 
         private float nextCheckTime;
         private PlayerController player;
+        private bool warnedNoArena;
 
         private void Start()
         {
@@ -90,7 +85,7 @@ namespace QiuQiu
 
             for (int attempt = 0; attempt < Mathf.Max(1, placementAttempts); attempt++)
             {
-                Vector3 point = PickPoint();
+                if (!TryPickPoint(out Vector3 point)) return false;
                 if (IsTooCloseToPlayer(point)) continue;
 
                 float mass = Random.Range(minFoodMass, maxFoodMass);
@@ -108,19 +103,25 @@ namespace QiuQiu
 
         // ArenaManager.GetRandomPointInside already keeps the point inside the arena,
         // so a second inside-check here would only re-test the same thing.
-        private Vector3 PickPoint()
+        private bool TryPickPoint(out Vector3 point)
         {
-            if (useArenaBounds && ArenaManager.Instance != null)
+            point = Vector3.zero;
+
+            if (ArenaManager.Instance == null)
             {
-                Vector2 point = ArenaManager.Instance.GetRandomPointInside(arenaEdgePadding + 0.6f);
-                return new Vector3(point.x, point.y, 0f);
+                // no arena: refuse to spawn instead of stacking every food on this transform
+                if (!warnedNoArena)
+                {
+                    warnedNoArena = true;
+                    Debug.LogError("[FoodSpawner] no ArenaManager in the scene, food spawning is disabled");
+                }
+
+                return false;
             }
 
-            Vector2 local = areaCenter + new Vector2(
-                Random.Range(-areaSize.x * 0.5f, areaSize.x * 0.5f),
-                Random.Range(-areaSize.y * 0.5f, areaSize.y * 0.5f));
-
-            return transform.position + new Vector3(local.x, local.y, 0f);
+            Vector2 inside = ArenaManager.Instance.GetRandomPointInside(borderMargin);
+            point = new Vector3(inside.x, inside.y, 0f);
+            return true;
         }
 
         private bool IsTooCloseToPlayer(Vector3 point)
@@ -139,13 +140,6 @@ namespace QiuQiu
             }
 
             return false;
-        }
-
-        private void OnDrawGizmosSelected()
-        {
-            Gizmos.color = new Color(0.3f, 1f, 0.5f, 0.8f);
-            Vector3 center = transform.position + new Vector3(areaCenter.x, areaCenter.y, 0f);
-            Gizmos.DrawWireCube(center, new Vector3(areaSize.x, areaSize.y, 0.1f));
         }
     }
 }

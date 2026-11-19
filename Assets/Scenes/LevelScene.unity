@@ -1794,10 +1794,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46cc282edc8cdf044bcc1372775269ca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.FoodSpawner
-  areaCenter: {x: 0, y: 0}
-  areaSize: {x: 50, y: 50}
-  useArenaBounds: 1
-  arenaEdgePadding: 0.4
+  borderMargin: 1
   maxFoodCount: 260
   fillOnStart: 1
   checkInterval: 0.5

@@ -29,7 +29,7 @@ namespace QiuQiu
         [Header("Scan")]
         [SerializeField] private float scanRadius = 8f;
         [SerializeField] private float scanInterval = 0.2f;
-        [SerializeField] private int scanBufferSize = 32;
+        [SerializeField] private int scanBufferSize = 256;
         [SerializeField] private LayerMask scanLayerMask = ~0;
 
         [Header("Decide")]
@@ -83,7 +83,6 @@ namespace QiuQiu
             rb.freezeRotation = true;
             rb.interpolation = RigidbodyInterpolation2D.Interpolate; //Smooth
 
-            scanBufferSize = 32;
             scanBuffer = new Collider2D[scanBufferSize];
 
             filter = new ContactFilter2D
@@ -146,7 +145,9 @@ namespace QiuQiu
 
             threats.Clear();
             //check circle have? other Collider2D (AI/Player)
-            int count = Physics2D.OverlapCircle(rb.position, scanRadius, filter, scanBuffer);
+            // a big body would fill a fixed circle: reach out from its own edge
+            float reach = scanRadius + self.Radius;
+            int count = Physics2D.OverlapCircle(rb.position, reach, filter, scanBuffer);
             for (int i = 0; i < count; i++)
             {
                 Collider2D hit = scanBuffer[i];
@@ -166,7 +167,7 @@ namespace QiuQiu
                         {
                             threats.Add(other);
                         }                            
-                        float gap = Mathf.Sqrt(sqrDistance) - other.Radius;  // who is closest by surface, not by center
+                        float gap = Mathf.Sqrt(sqrDistance) - other.Radius - self.Radius;  // edge to edge, measured from my own surface
                         if (gap < result.threatGap)
                         {
                             result.threatGap = gap;
@@ -175,7 +176,7 @@ namespace QiuQiu
                     }
                     else if (self.CanEat(other))
                     {
-                        float gap = Mathf.Sqrt(sqrDistance) - other.Radius;
+                        float gap = Mathf.Sqrt(sqrDistance) - other.Radius - self.Radius;
                         if (gap < result.preyGap)
                         {
                             result.preyGap = gap;
@@ -199,7 +200,7 @@ namespace QiuQiu
             }
 
             result.foodGap = result.nearestFood != null
-                ? Mathf.Sqrt(result.foodSqr) - result.nearestFood.Radius   
+                ? Mathf.Sqrt(result.foodSqr) - result.nearestFood.Radius - self.Radius   
                 : float.MaxValue;
 
             return result;
@@ -326,7 +327,7 @@ namespace QiuQiu
                 if (threat == null || threat.IsDead) continue;
 
                 Vector2 offset = position - (Vector2)threat.transform.position;
-                float gap = Mathf.Max(0.1f, Mathf.Sqrt(offset.sqrMagnitude) - threat.Radius);  // weight by the surface gap, not the centre
+                float gap = Mathf.Max(0.1f, Mathf.Sqrt(offset.sqrMagnitude) - threat.Radius - self.Radius);
                 away += offset.normalized * (1f / (gap * gap));
             }
 
@@ -404,19 +405,24 @@ namespace QiuQiu
             //make all AI different time turn direct
             nextWanderChangeTime = Time.time + wanderChangeInterval * Random.Range(0.7f, 1.3f);
         }
-
-        // ------------------------------ editor ------------------------------
-
+        
+        //for check to see
         private void OnDrawGizmosSelected()
         {
+            //yellow:Scanning radius
+            SizeController body = self != null ? self : GetComponent<SizeController>();
+            float reach = scanRadius + (body != null ? body.Radius : 0f);
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(transform.position, scanRadius);
+            Gizmos.DrawWireSphere(transform.position, reach);
 
+            //red:run Radius
             Gizmos.color = new Color(1f, 0.4f, 0.4f, 0.9f);
             Gizmos.DrawWireSphere(transform.position, fleeRadius);
 
             if (chaseTarget != null)
             {
+
+                //green; to target
                 Gizmos.color = Color.green;
                 Gizmos.DrawLine(transform.position, chaseTarget.position);
             }

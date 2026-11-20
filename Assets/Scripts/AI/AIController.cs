@@ -3,13 +3,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Wander / Chase / Flee state machine.
-    // The scan is the expensive part: it runs on an interval, uses a pre-allocated
-    // buffer with the non-allocating OverlapCircle overload, and each AI starts on a
-    // random phase so they never all scan on the same frame.
-    [DisallowMultipleComponent]
-    [RequireComponent(typeof(Rigidbody2D))]
-    [RequireComponent(typeof(SizeController))]
     public class AIController : MonoBehaviour
     {
         public enum AIState
@@ -202,7 +195,7 @@ namespace QiuQiu
             bool hasPrey = result.nearestPrey != null;
             bool hasFood = result.nearestFood != null;
 
-            if (hasThreat && result.threatDistanceSqr <= fleeRadius * fleeRadius)
+            if (hasThreat && ThreatGap(result) <= fleeRadius)
             {
                 EnterFlee();
                 return;
@@ -237,6 +230,13 @@ namespace QiuQiu
             }
 
             state = chaseTarget != null ? AIState.Chase : AIState.Wander;
+        }
+
+        // a giant's body reaches us long before its center does
+        private static float ThreatGap(ScanResult result)
+        {
+            float distance = Mathf.Sqrt(result.threatDistanceSqr);
+            return distance - result.nearestThreat.Radius;
         }
 
         private void EnterFlee()

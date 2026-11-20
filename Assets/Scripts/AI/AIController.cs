@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace QiuQiu
@@ -42,11 +43,11 @@ namespace QiuQiu
         [SerializeField] private float borderAvoidMargin = 2.5f;
         [SerializeField] private float borderAvoidWeight = 2.2f;
 
-        // what one scan found, kept as a struct so the pass has no side effects
+        
         private struct ScanResult
         {
             public SizeController nearestThreat;
-            public float threatDistanceSqr;
+            public float threatGap;          // surface distance, negative once the bodies touch
             public SizeController nearestPrey;
             public float preyDistanceSqr;
             public Edible nearestFood;
@@ -67,11 +68,9 @@ namespace QiuQiu
         private float nextWanderChangeTime;
         private float nextScanTime;
 
-        public AIState CurrentState { get { return state; } }
-
-        // runtime spawns get a little personality so ten AIs do not move alike
+        // make Ai different
         public void ApplyRandomProfile(float speedScale, float scanScale)
-        {
+        {   //avoid /0
             moveSpeed = Mathf.Max(0.1f, moveSpeed * Mathf.Max(0.1f, speedScale));
             scanRadius = Mathf.Clamp(scanRadius * Mathf.Max(0.1f, scanScale), 3f, 20f);
         }
@@ -83,36 +82,41 @@ namespace QiuQiu
 
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
-            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate; //Smooth
 
-            scanBufferSize = Mathf.Clamp(scanBufferSize, 4, 128);
+            scanBufferSize = 32;
             scanBuffer = new Collider2D[scanBufferSize];
 
             filter = new ContactFilter2D
             {
-                useTriggers = true,     // food and the eat sensor are triggers
-                useLayerMask = scanLayerMask.value != ~0,
+                useTriggers = true,    
+                useLayerMask = scanLayerMask.value != ~0,//(!(` = Negate > 1)) = No layer filtering
                 layerMask = scanLayerMask
             };
 
-            PickNewWanderDirection();
+            PickNewWanderDirection(); //Initial
+            //make 10 AI in different time scarn
             nextScanTime = Time.time + Random.Range(0f, Mathf.Max(0.01f, scanInterval));
         }
 
         private void FixedUpdate()
         {
-            if (self == null || self.IsDead) return;
+            if (self == null || self.IsDead)
+            {
+                return;
+            }
 
             if (Time.time >= nextScanTime)
             {
-                nextScanTime = Time.time + Mathf.Max(0.02f, scanInterval);
+                nextScanTime = Time.time +  scanInterval;
                 Scan();
             }
 
-            Vector2 desired = DecideDirection();
-            desired = ApplyBorderAvoidance(desired);
-            ApplyMovement(desired);
+            Vector2 desired = DecideDirection(); //go where
+            desired = ApplyBorderAvoidance(desired); //in border?
+            ApplyMovement(desired); //go
 
+            //for ball go back to area(if go out)
             if (ArenaManager.Instance != null)
             {
                 ArenaManager.Instance.Constrain(rb, self.Radius);
@@ -129,27 +133,30 @@ namespace QiuQiu
 
             if (state == AIState.Wander && Time.time >= nextWanderChangeTime)
             {
-                PickNewWanderDirection();
+                PickNewWanderDirection();   //turn direction
             }
         }
 
-        // one pass over the buffer: fills the threat list and the three nearest
+        //  over the buffer: fills the threat list and the three nearest
         private ScanResult LookAround()
         {
             var result = new ScanResult
             {
-                threatDistanceSqr = float.MaxValue,
+                threatGap = float.MaxValue,
                 preyDistanceSqr = float.MaxValue,
                 foodDistanceSqr = float.MaxValue
             };
 
             threats.Clear();
-
+            //check circle have? other Collider2D (AI/Player)
             int count = Physics2D.OverlapCircle(rb.position, scanRadius, filter, scanBuffer);
             for (int i = 0; i < count; i++)
             {
                 Collider2D hit = scanBuffer[i];
-                if (hit == null) continue;
+                if (hit == null)
+                {
+                    continue;
+                }
 
                 SizeController other = hit.GetComponentInParent<SizeController>();
                 if (other != null && other != self && !other.IsDead)
@@ -158,10 +165,14 @@ namespace QiuQiu
 
                     if (other.CanEat(self))
                     {
-                        if (!threats.Contains(other)) threats.Add(other);
-                        if (sqrDistance < result.threatDistanceSqr)
+                        if (!threats.Contains(other))   //to sure A ball only will  hit once.
                         {
-                            result.threatDistanceSqr = sqrDistance;
+                            threats.Add(other);
+                        }                            
+                        float gap = Mathf.Sqrt(sqrDistance) - other.Radius;  // who is closest by surface, not by center
+                        if (gap < result.threatGap)
+                        {
+                            result.threatGap = gap;
                             result.nearestThreat = other;
                         }
                     }
@@ -195,15 +206,15 @@ namespace QiuQiu
             bool hasPrey = result.nearestPrey != null;
             bool hasFood = result.nearestFood != null;
 
-            if (hasThreat && ThreatGap(result) <= fleeRadius)
+            if (hasThreat && result.threatGap <= fleeRadius)
             {
                 EnterFlee();
                 return;
             }
 
-            // a threat that is closer than anything worth eating still wins
+            // prey/food are still measured center to center, a food radius is tiny
             if (hasThreat && (hasPrey || hasFood) &&
-                result.threatDistanceSqr < Mathf.Min(result.preyDistanceSqr, result.foodDistanceSqr))
+                result.threatGap <= Mathf.Sqrt(Mathf.Min(result.preyDistanceSqr, result.foodDistanceSqr)))
             {
                 EnterFlee();
                 return;
@@ -230,13 +241,6 @@ namespace QiuQiu
             }
 
             state = chaseTarget != null ? AIState.Chase : AIState.Wander;
-        }
-
-        // a giant's body reaches us long before its center does
-        private static float ThreatGap(ScanResult result)
-        {
-            float distance = Mathf.Sqrt(result.threatDistanceSqr);
-            return distance - result.nearestThreat.Radius;
         }
 
         private void EnterFlee()

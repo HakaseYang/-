@@ -106,7 +106,7 @@ namespace QiuQiu
         {
             State = RoundState.Playing;
             timer.Start(roundDuration);
-            nextAiSpawnTime = Time.unscaledTime + aiRespawnDelay;
+            nextAiSpawnTime = Time.time + aiRespawnDelay;
 
             if (player == null)
             {
@@ -130,7 +130,7 @@ namespace QiuQiu
                 return;
             }
 
-            timer.Tick(Time.unscaledDeltaTime);
+            timer.Tick(Time.deltaTime);
             TickPlayerState();
             TickRespawn();
             TickAiRespawn();
@@ -154,7 +154,7 @@ namespace QiuQiu
             SizeController.AiMassCap = Mathf.Max(0f, player.TotalMass) * GameSettings.AiMassCapFactor;
         }
 
-        // unscaledDeltaTime：avoid stop game time
+        // scaled clock: a pause sets timeScale = 0, so the round clock stops with the world
         private void TickPlayerState()
         {
             // for main ball die
@@ -199,7 +199,7 @@ namespace QiuQiu
                 return;
             }
 
-            RespawnTimeLeft = Mathf.Max(0f, respawnDeadline - Time.unscaledTime);
+            RespawnTimeLeft = Mathf.Max(0f, respawnDeadline - Time.time);
             if (RespawnTimeLeft <= 0f)
             {
                 RespawnPlayer();
@@ -232,7 +232,7 @@ namespace QiuQiu
                 }
             }
 
-            respawnDeadline = Time.unscaledTime + playerRespawnDelay;
+            respawnDeadline = Time.time + playerRespawnDelay;
             RespawnTimeLeft = playerRespawnDelay;
         }
 
@@ -256,7 +256,7 @@ namespace QiuQiu
 
                 IsPlayerRespawning = true;
                 RespawnTimeLeft = 1f;
-                respawnDeadline = Time.unscaledTime + 1f;
+                respawnDeadline = Time.time + 1f;
                 return;
             }
 
@@ -373,7 +373,7 @@ namespace QiuQiu
         private void TickAiRespawn()
         {
 
-            if (Time.unscaledTime < nextAiSpawnTime)
+            if (Time.time < nextAiSpawnTime)
             {
                 return;
 
@@ -383,7 +383,7 @@ namespace QiuQiu
                 return;
             }
 
-            nextAiSpawnTime = Time.unscaledTime +aiRespawnDelay;
+            nextAiSpawnTime = Time.time + aiRespawnDelay;
 
             SpawnAi();
         }

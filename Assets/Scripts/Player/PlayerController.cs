@@ -19,7 +19,7 @@ namespace QiuQiu
     ///   控制目标每帧动态挑选，从根上消除这一类问题。
     ///
     /// 设计要点：
-    /// 1. 用 activePlayerBalls 列表记录当前所有存活的玩家球；球被吃时自动移出列表，
+    /// 1. 用 PlayerRoster 记录当前所有存活的玩家球；球被吃时自动移出列表，
     ///    只要列表非空，键盘 / 摇杆就依然能操控剩下的球。
     /// 2. 移动输入施加给列表中**每一颗**需要由控制器驱动的球（带 PlayerSubBall 的子球
     ///    由 PlayerSubBall 自己读取同一份输入，见 InputVelocity）。
@@ -99,15 +99,8 @@ namespace QiuQiu
 
         private readonly InputReader playerInput = new InputReader();
 
-        /// <summary>
-        /// 当前所有存活的玩家球（等价于需求里的 activePlayerBalls）。
-        /// 用 SizeController 而不是 GameObject，是因为移动/质量/半径都要读它；
-        /// 球被吃掉时会通过 Eaten 事件立刻移出列表。
-        /// </summary>
-        private readonly List<SizeController> activePlayerBalls = new List<SizeController>();
-
-        /// <summary>当前主球 = 质量最大的存活球。每帧动态计算，不缓存死引用。</summary>
-        private SizeController mainBall;
+        // the list of balls and the main ball live in PlayerRoster
+        private readonly PlayerRoster roster = new PlayerRoster();
 
         private Vector2 moveInput;
 
@@ -264,11 +257,12 @@ namespace QiuQiu
         {
             if (Active == this) Active = null;
 
-            foreach (var ball in activePlayerBalls)
+            for (int i = 0; i < roster.Count; i++)
             {
+                SizeController ball = roster.Balls[i];
                 if (ball != null) ball.Eaten -= OnBallEaten;
             }
-            activePlayerBalls.Clear();
+            roster.Clear();
         }
 
         private void Start()
@@ -320,13 +314,13 @@ namespace QiuQiu
         private void FixedUpdate()
         {
             // 1. 先清掉已经销毁/被吃掉的球（事件漏掉时的兜底）
-            PruneDeadBalls();
+            roster.PruneDead(UnhookBall);
 
             // 2. 列表空了就尝试重新接管场景里 team == 0 的球
-            if (activePlayerBalls.Count == 0 && autoAdoptPlayerBalls) AdoptOrphanPlayerBalls();
+            if (roster.Count == 0 && autoAdoptPlayerBalls) AdoptOrphanPlayerBalls();
 
             // 3. 主球 = 当前质量最大的存活球（每次重算，不缓存死引用）
-            mainBall = FindLargestBall();
+            roster.RefreshMain();
 
             // 4. 输入处理
             Vector2 input = Vector2.ClampMagnitude(moveInput, 1f);
@@ -348,9 +342,9 @@ namespace QiuQiu
         /// </summary>
         private void MovePlayerBalls(Vector2 input)
         {
-            for (int i = 0; i < activePlayerBalls.Count; i++)
+            for (int i = 0; i < roster.Count; i++)
             {
-                SizeController ball = activePlayerBalls[i];
+                SizeController ball = roster.Balls[i];
                 if (ball == null || ball.IsDead) continue;
 
                 var sub = ball.GetComponent<PlayerSubBall>();
@@ -406,14 +400,12 @@ namespace QiuQiu
         public void RegisterBall(SizeController ball)
         {
             if (ball == null || ball.IsDead) return;
-            if (activePlayerBalls.Contains(ball)) return;
+            if (roster.Contains(ball)) return;
 
-            activePlayerBalls.Add(ball);
+            roster.Add(ball);
             ball.Eaten += OnBallEaten;
 
             if (!mergeReadyAt.ContainsKey(ball)) mergeReadyAt[ball] = 0f;
-
-            if (mainBall == null || ball.Mass > mainBall.Mass) mainBall = ball;
         }
 
         /// <summary>把一颗球移出玩家控制（被吃掉 / 主动丢弃）。</summary>
@@ -422,27 +414,19 @@ namespace QiuQiu
             if (ball == null) return;
 
             ball.Eaten -= OnBallEaten;
-            activePlayerBalls.Remove(ball);
+            roster.Remove(ball);
             mergeReadyAt.Remove(ball);
             mergingBalls.Remove(ball);
             mergeJobs.RemoveAll(job => job.small == ball);
-
-            if (mainBall == ball) mainBall = FindLargestBall();
         }
 
-        /// <summary>清掉已经销毁的引用（事件漏掉时兜底）。</summary>
-        private void PruneDeadBalls()
+        // one place unhooks a ball the roster dropped: events plus cooldown bookkeeping
+        private void UnhookBall(SizeController ball)
         {
-            for (int i = activePlayerBalls.Count - 1; i >= 0; i--)
-            {
-                SizeController ball = activePlayerBalls[i];
-                if (ball == null || ball.IsDead)
-                {
-                    if (ball != null) ball.Eaten -= OnBallEaten;
-                    if (ball != null) mergeReadyAt.Remove(ball);
-                    activePlayerBalls.RemoveAt(i);
-                }
-            }
+            ball.Eaten -= OnBallEaten;
+            mergeReadyAt.Remove(ball);
+            mergingBalls.Remove(ball);
+            mergeJobs.RemoveAll(job => job.small == ball);
         }
 
         /// <summary>
@@ -456,15 +440,15 @@ namespace QiuQiu
             {
                 SizeController ball = registry[i];
                 if (ball == null || ball.IsDead || ball.Team != Team.Player) continue;
-                if (activePlayerBalls.Contains(ball)) continue;
+                if (roster.Contains(ball)) continue;
 
                 RegisterBall(ball);
 
                 // 非主球要保证有跟随组件（否则它会被当成“主球”直接吃输入，队形会乱）
-                if (activePlayerBalls.Count > 1 && ball.GetComponent<PlayerSubBall>() == null)
+                if (roster.Count > 1 && ball.GetComponent<PlayerSubBall>() == null)
                 {
                     var sub = ball.gameObject.AddComponent<PlayerSubBall>();
-                    sub.Initialize(this, SlotAngleFor(activePlayerBalls.Count - 1));
+                    sub.Initialize(this, SlotAngleFor(roster.Count - 1));
                 }
             }
         }
@@ -472,37 +456,32 @@ namespace QiuQiu
         private void OnBallEaten(SizeController victim, SizeController killer)
         {
             victim.Eaten -= OnBallEaten;
-            activePlayerBalls.Remove(victim);
             mergeReadyAt.Remove(victim);
             mergingBalls.Remove(victim);
             mergeJobs.RemoveAll(job => job.small == victim);
 
+            bool wasMain = roster.Main == victim;
+            roster.Remove(victim);
+
             string killerName = killer != null ? killer.name : "未知";
 
-            if (victim == mainBall)
+            if (wasMain)
             {
-                Debug.Log($"[玩家] 主球被 {killerName} 吃掉，剩余球数 {activePlayerBalls.Count}");
+                Debug.Log($"[玩家] 主球被 {killerName} 吃掉，剩余球数 {roster.Count}");
 
                 // 主球只是列表里的一员：重新挑一个最大的继续控制，
                 // 控制器本身在 PlayerRoot 上，不会跟着球一起消失。
-                mainBall = FindLargestBall();
-
-                if (mainBall != null)
+                if (roster.Main != null)
                 {
-                    Debug.Log($"[玩家] 控制权自动切换到 {mainBall.name}（质量 {mainBall.Mass:F0}），剩余球数 {activePlayerBalls.Count}");
+                    Debug.Log($"[玩家] 控制权自动切换到 {roster.Main.name}（质量 {roster.Main.Mass:F0}），剩余球数 {roster.Count}");
                 }
             }
             else
             {
-                Debug.Log($"[玩家] 子球被吃掉，剩余球数 {activePlayerBalls.Count}");
-                if (mainBall == null) mainBall = FindLargestBall();
+                Debug.Log($"[玩家] 子球被吃掉，剩余球数 {roster.Count}");
             }
 
-            if (activePlayerBalls.Count == 0)
-            {
-                mainBall = null;
-                NotifyDefeat(killer);
-            }
+            if (roster.Count == 0) NotifyDefeat(killer);
         }
 
         /// <summary>把最后的死讯交给 GameManager（没有 GameManager 时只打日志）。</summary>
@@ -511,24 +490,6 @@ namespace QiuQiu
             Debug.Log($"[玩家] 所有球都被吃掉了，游戏结束（死于 {(killer != null ? killer.name : "未知")}）");
 
             if (GameManager.Instance != null) GameManager.Instance.NotifyPlayerDefeated(killer);
-        }
-
-        /// <summary>选出质量最大的球（分裂/吐球都从它身上扣质量）。</summary>
-        private SizeController FindLargestBall()
-        {
-            SizeController best = null;
-            float bestMass = float.MinValue;
-
-            for (int i = activePlayerBalls.Count - 1; i >= 0; i--)
-            {
-                var ball = activePlayerBalls[i];
-                if (ball == null) { activePlayerBalls.RemoveAt(i); continue; }
-                if (ball.IsDead) continue;
-
-                if (ball.Mass > bestMass) { bestMass = ball.Mass; best = ball; }
-            }
-
-            return best;
         }
 
         /// <summary>给第 index 个子球分配一个环上的槽位角度（度）。</summary>
@@ -546,7 +507,7 @@ namespace QiuQiu
             if (Time.time < nextSplitTime) return false;
 
             // 主球优先原则：永远从当前质量最大的存活球上分裂
-            SizeController source = FindLargestBall();
+            SizeController source = roster.Largest();
             if (source == null) return false;
 
             if (source.Mass <= splitMinMass)
@@ -555,7 +516,7 @@ namespace QiuQiu
                 return false;
             }
 
-            if (activePlayerBalls.Count >= maxBallCount)
+            if (roster.Count >= maxBallCount)
             {
                 Debug.Log($"[分裂] 已达球数上限 {maxBallCount}，无法继续分裂");
                 return false;
@@ -575,7 +536,7 @@ namespace QiuQiu
             Vector3 spawnPosition = source.transform.position + (Vector3)(dir * spawnDistance);
 
             SizeController newBall = SpawnBall(
-                $"{name}_Ball{activePlayerBalls.Count}", spawnPosition, newMass, sprite, color);
+                $"{name}_Ball{roster.Count}", spawnPosition, newMass, sprite, color);
 
             if (newBall == null) return false;
 
@@ -584,12 +545,12 @@ namespace QiuQiu
 
             // 子球按固定槽位环绕主球，槽位均分一圈
             var sub = newBall.gameObject.AddComponent<PlayerSubBall>();
-            sub.Initialize(this, SlotAngleFor(activePlayerBalls.Count - 1));
+            sub.Initialize(this, SlotAngleFor(roster.Count - 1));
 
             mergeReadyAt[newBall] = Time.time + mergeCooldown;   // 分裂出的球要等冷却结束才能合体
 
             Debug.Log($"[分裂] 母球 {source.Mass + newMass:F0} → {source.Mass:F0} + 新球 {newMass:F0}，" +
-                      $"球数 {activePlayerBalls.Count}/{maxBallCount}，初速度 {splitLaunchSpeed}");
+                      $"球数 {roster.Count}/{maxBallCount}，初速度 {splitLaunchSpeed}");
             AudioManager.Instance.PlaySplit();
             return true;
         }
@@ -601,7 +562,7 @@ namespace QiuQiu
         {
             if (Time.time < nextSpitTime) return false;
 
-            SizeController source = FindLargestBall();
+            SizeController source = roster.Largest();
             if (source == null) return false;
 
             if (!source.TryConsumeMass(spitMassCost, minMassAfterSpit))
@@ -707,17 +668,17 @@ namespace QiuQiu
         /// <summary>两两检测玩家球是否重叠；重叠且都过了冷却就开始合体。</summary>
         private void DetectMerges()
         {
-            if (activePlayerBalls.Count < 2) return;
+            if (roster.Count < 2) return;
             if (mergeJobs.Count > 0) return;    // 一次只处理一对，避免连锁抖动
 
-            for (int i = 0; i < activePlayerBalls.Count; i++)
+            for (int i = 0; i < roster.Count; i++)
             {
-                var a = activePlayerBalls[i];
+                var a = roster.Balls[i];
                 if (a == null || a.IsDead || !CanMerge(a)) continue;
 
-                for (int j = i + 1; j < activePlayerBalls.Count; j++)
+                for (int j = i + 1; j < roster.Count; j++)
                 {
-                    var b = activePlayerBalls[j];
+                    var b = roster.Balls[j];
                     if (b == null || b.IsDead || !CanMerge(b)) continue;
 
                     // 两个球都有实体碰撞体，物理上最多“贴住”，不会真的重叠。
@@ -737,8 +698,8 @@ namespace QiuQiu
             SizeController keeper;
             SizeController small;
 
-            if (a == mainBall) { keeper = a; small = b; }
-            else if (b == mainBall) { keeper = b; small = a; }
+            if (a == roster.Main) { keeper = a; small = b; }
+            else if (b == roster.Main) { keeper = b; small = a; }
             else if (a.Mass >= b.Mass) { keeper = a; small = b; }
             else { keeper = b; small = a; }
 
@@ -802,7 +763,7 @@ namespace QiuQiu
                 job.small.Die(job.keeper);   // Die 会触发 Eaten -> OnBallEaten 做清理
 
                 Debug.Log($"[合体] 完成：{keeperMassBefore:F0} + {gain:F0} → {job.keeper.Mass:F0}，" +
-                          $"球数 {activePlayerBalls.Count}");
+                          $"球数 {roster.Count}");
             }
         }
 
@@ -850,32 +811,20 @@ namespace QiuQiu
         {
             get
             {
-                var rb = mainBall != null ? mainBall.GetComponent<Rigidbody2D>() : null;
+                var rb = roster.Main != null ? roster.Main.GetComponent<Rigidbody2D>() : null;
                 return rb != null ? rb.linearVelocity : Vector2.zero;
             }
         }
 
         /// <summary>当前主球 = 质量最大的存活球。</summary>
-        public SizeController MainBall => mainBall;
+        public SizeController MainBall { get { return roster.Main; } }
 
-        public int BallCount => activePlayerBalls.Count;
+        public int BallCount { get { return roster.Count; } }
 
         /// <summary>玩家当前所有存活的球（摄像机会用它算取景中心）。</summary>
-        public IReadOnlyList<SizeController> Balls => activePlayerBalls;
+        public IReadOnlyList<SizeController> Balls { get { return roster.Balls; } }
 
         /// <summary>玩家所有球的质量总和（做 UI 分数、大小排行榜时用）。</summary>
-        public float TotalMass
-        {
-            get
-            {
-                float total = 0f;
-                for (int i = 0; i < activePlayerBalls.Count; i++)
-                {
-                    var ball = activePlayerBalls[i];
-                    if (ball != null && !ball.IsDead) total += ball.Mass;
-                }
-                return total;
-            }
-        }
+        public float TotalMass { get { return roster.TotalMass; } }
     }
 }

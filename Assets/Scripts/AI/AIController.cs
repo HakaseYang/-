@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace QiuQiu
@@ -49,9 +48,9 @@ namespace QiuQiu
             public SizeController nearestThreat;
             public float threatGap;          // surface distance, negative once the bodies touch
             public SizeController nearestPrey;
-            public float preyDistanceSqr;
+            public float preyGap;
             public Edible nearestFood;
-            public float foodDistanceSqr;
+            public float foodGap;
         }
 
         private Rigidbody2D rb;
@@ -143,8 +142,8 @@ namespace QiuQiu
             var result = new ScanResult
             {
                 threatGap = float.MaxValue,
-                preyDistanceSqr = float.MaxValue,
-                foodDistanceSqr = float.MaxValue
+                preyGap = float.MaxValue,
+                foodGap = float.MaxValue
             };
 
             threats.Clear();
@@ -176,10 +175,14 @@ namespace QiuQiu
                             result.nearestThreat = other;
                         }
                     }
-                    else if (self.CanEat(other) && sqrDistance < result.preyDistanceSqr)
+                    else if (self.CanEat(other))
                     {
-                        result.preyDistanceSqr = sqrDistance;
-                        result.nearestPrey = other;
+                        float gap = Mathf.Sqrt(sqrDistance) - other.Radius;
+                        if (gap < result.preyGap)
+                        {
+                            result.preyGap = gap;
+                            result.nearestPrey = other;
+                        }
                     }
 
                     continue;
@@ -189,9 +192,10 @@ namespace QiuQiu
                 if (food != null)
                 {
                     float sqrDistance = ((Vector2)food.transform.position - rb.position).sqrMagnitude;
-                    if (sqrDistance < result.foodDistanceSqr)
+                    float gap = Mathf.Sqrt(sqrDistance) - food.Radius;
+                    if (gap < result.foodGap)
                     {
-                        result.foodDistanceSqr = sqrDistance;
+                        result.foodGap = gap;
                         result.nearestFood = food;
                     }
                 }
@@ -212,9 +216,9 @@ namespace QiuQiu
                 return;
             }
 
-            // prey/food are still measured center to center, a food radius is tiny
+            // all three are surface gaps now, so they compare directly
             if (hasThreat && (hasPrey || hasFood) &&
-                result.threatGap <= Mathf.Sqrt(Mathf.Min(result.preyDistanceSqr, result.foodDistanceSqr)))
+                result.threatGap <= Mathf.Min(result.preyGap, result.foodGap))
             {
                 EnterFlee();
                 return;
@@ -231,7 +235,7 @@ namespace QiuQiu
             {
                 SetPreyTarget(result.nearestPrey);
             }
-            else if (hasPrey && result.preyDistanceSqr <= result.foodDistanceSqr)
+            else if (hasPrey && result.preyGap <= result.foodGap)
             {
                 SetPreyTarget(result.nearestPrey);
             }

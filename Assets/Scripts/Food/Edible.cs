@@ -21,6 +21,12 @@ namespace QiuQiu
             get { return activeCount; }
         }
 
+        // the sprite is one unit wide, so localScale.x is the world diameter
+        public float Radius
+        {
+            get { return transform.localScale.x * 0.5f; }
+        }
+
         private void OnEnable()
         {
             activeCount++;

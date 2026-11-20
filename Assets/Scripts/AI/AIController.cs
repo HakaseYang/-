@@ -61,7 +61,6 @@ namespace QiuQiu
 
         private AIState state = AIState.Wander;
         private Transform chaseTarget;
-        private Edible chaseFood;
         private readonly List<SizeController> threats = new List<SizeController>(8);
 
         private Vector2 wanderDirection = Vector2.right;
@@ -122,8 +121,6 @@ namespace QiuQiu
                 ArenaManager.Instance.Constrain(rb, self.Radius);
             }
         }
-
-        // ------------------------------ scan ------------------------------
 
         private void Scan()
         {
@@ -193,7 +190,7 @@ namespace QiuQiu
                 if (food != null)
                 {
                     float sqrDistance = ((Vector2)food.transform.position - rb.position).sqrMagnitude;
-                    if (sqrDistance < result.foodSqr)   // food radii differ by little, center distance is enough
+                    if (sqrDistance < result.foodSqr)   // food :center distance is enough
                     {
                         result.foodSqr = sqrDistance;
                         result.nearestFood = food;
@@ -202,7 +199,7 @@ namespace QiuQiu
             }
 
             result.foodGap = result.nearestFood != null
-                ? Mathf.Sqrt(result.foodSqr) - result.nearestFood.Radius   // one sqrt for the winner, not per candidate
+                ? Mathf.Sqrt(result.foodSqr) - result.nearestFood.Radius   
                 : float.MaxValue;
 
             return result;
@@ -214,13 +211,14 @@ namespace QiuQiu
             bool hasPrey = result.nearestPrey != null;
             bool hasFood = result.nearestFood != null;
 
+            //run out Threat
             if (hasThreat && result.threatGap <= fleeRadius)
             {
                 EnterFlee();
                 return;
             }
 
-            // all three are surface gaps now, so they compare directly
+            // if Prey close more Threat,run
             if (hasThreat && (hasPrey || hasFood) &&
                 result.threatGap <= Mathf.Min(result.preyGap, result.foodGap))
             {
@@ -229,7 +227,6 @@ namespace QiuQiu
             }
 
             chaseTarget = null;
-            chaseFood = null;
 
             if (chasePreference == ChasePreference.FoodFirst && hasFood)
             {
@@ -255,36 +252,40 @@ namespace QiuQiu
         {
             state = AIState.Flee;
             chaseTarget = null;
-            chaseFood = null;
         }
 
         private void SetFoodTarget(Edible food)
         {
-            chaseFood = food;
             chaseTarget = food.transform;
         }
 
         private void SetPreyTarget(SizeController prey)
         {
-            chaseFood = null;
             chaseTarget = prey.transform;
         }
 
-        // stop buzzing around a target we already reached
+        // stop buzzing around a target 
         private void HandleArrivedTarget()
         {
-            if (state != AIState.Chase || chaseTarget == null) return;
+            if (state != AIState.Chase || chaseTarget == null)
+            {
+                return;
+            }
 
             Vector2 delta = (Vector2)chaseTarget.position - rb.position;
-            if (delta.sqrMagnitude > arriveDistance * arriveDistance) return;
+            if (delta.sqrMagnitude > arriveDistance * arriveDistance)
+            {
+                return;
+            }
 
+            //Arrived Target
             chaseTarget = null;
-            chaseFood = null;
-            if (threats.Count == 0) state = AIState.Wander;
-            PickNewWanderDirection();
+            if (threats.Count == 0)
+            {
+                state = AIState.Wander;
+            }
+                PickNewWanderDirection();
         }
-
-        // ------------------------------ decide / move ------------------------------
 
         private Vector2 DecideDirection()
         {
@@ -297,17 +298,23 @@ namespace QiuQiu
                     if (chaseTarget != null)
                     {
                         Vector2 toTarget = (Vector2)chaseTarget.position - rb.position;
-                        if (toTarget.sqrMagnitude > 0.0001f) return toTarget.normalized;
+                        if (toTarget.sqrMagnitude > 0.0001f)
+                        {
+                            return toTarget.normalized;
+                        }
                     }
                     return wanderDirection;
 
                 default:
-                    if (Time.time >= nextWanderChangeTime) PickNewWanderDirection();
+                    if (Time.time >= nextWanderChangeTime)
+                    {
+                        PickNewWanderDirection();
+                    }
                     return wanderDirection;
             }
         }
 
-        // away from every threat, nearest threat weighed heaviest
+        // away  every threat, nearest threat weighed heaviest
         private Vector2 FleeDirection()
         {
             Vector2 away = Vector2.zero;
@@ -319,21 +326,34 @@ namespace QiuQiu
                 if (threat == null || threat.IsDead) continue;
 
                 Vector2 offset = position - (Vector2)threat.transform.position;
-                float sqrDistance = Mathf.Max(offset.sqrMagnitude, 0.01f);
-                away += offset.normalized * (1f / sqrDistance);
+                float gap = Mathf.Max(0.1f, Mathf.Sqrt(offset.sqrMagnitude) - threat.Radius);  // weight by the surface gap, not the centre
+                away += offset.normalized * (1f / (gap * gap));
             }
 
-            if (away.sqrMagnitude < 0.0001f) return Random.insideUnitCircle.normalized;
+            //two threat close,choice one way run
+            if (away.sqrMagnitude < 0.0001f)
+            {
+                return Random.insideUnitCircle.normalized;
+            }
             return away.normalized;
         }
 
         private void ApplyMovement(Vector2 desiredDirection)
         {
-            if (desiredDirection.sqrMagnitude < 0.0001f) return;
+            if (desiredDirection.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
 
             float speed = moveSpeed * (self != null ? self.MoveSpeedFactor : 1f);
-            if (state == AIState.Chase) speed *= Mathf.Max(0.1f, chaseSpeedFactor);
-            else if (state == AIState.Flee) speed *= Mathf.Max(0.1f, fleeSpeedFactor);
+            if (state == AIState.Chase)
+            {
+                speed *= chaseSpeedFactor;
+            }
+            else if (state == AIState.Flee)
+            {
+                speed *= fleeSpeedFactor;
+            }
 
             Vector2 targetVelocity = desiredDirection.normalized * speed;
             Vector2 currentVelocity = rb.linearVelocity;
@@ -352,17 +372,26 @@ namespace QiuQiu
                 currentVelocity, targetVelocity, Mathf.Max(1f, acceleration) * Time.fixedDeltaTime);
         }
 
-        // soft border: start leaning back inside before the hard clamp kicks in
+        // soft border
         private Vector2 ApplyBorderAvoidance(Vector2 direction)
         {
             ArenaManager arena = ArenaManager.Instance;
-            if (arena == null) return direction;
-            if (arena.IsInside(rb.position, borderAvoidMargin)) return direction;
+            if (arena == null)
+            {
+                return direction;
+            }
+            if (arena.IsInside(rb.position, borderAvoidMargin))
+            {
+                return direction;
+            }
 
             Vector2 toCenter = (arena.Center - rb.position).normalized;
             Vector2 blended = direction + toCenter * borderAvoidWeight;
 
-            if (blended.sqrMagnitude < 0.0001f) return toCenter;
+            if (blended.sqrMagnitude < 0.0001f)
+            {
+                return toCenter;
+            }
             return blended.normalized;
         }
 
@@ -372,6 +401,7 @@ namespace QiuQiu
             if (candidate.sqrMagnitude < 0.0001f) candidate = Vector2.right;
 
             wanderDirection = candidate.normalized;
+            //make all AI different time turn direct
             nextWanderChangeTime = Time.time + wanderChangeInterval * Random.Range(0.7f, 1.3f);
         }
 
@@ -394,7 +424,7 @@ namespace QiuQiu
 #if UNITY_EDITOR
             if (Application.isPlaying)
             {
-                string target = chaseTarget != null ? chaseTarget.name : (chaseFood != null ? chaseFood.name : "-");
+                string target = chaseTarget != null ? chaseTarget.name : "-";
                 UnityEditor.Handles.color = Color.white;
                 UnityEditor.Handles.Label(transform.position + Vector3.up * 1.5f, state + " -> " + target);
             }

@@ -50,6 +50,7 @@ namespace QiuQiu
             public SizeController nearestPrey;
             public float preyGap;
             public Edible nearestFood;
+            public float foodSqr;            // food is picked by center distance: no sqrt per candidate
             public float foodGap;
         }
 
@@ -143,7 +144,7 @@ namespace QiuQiu
             {
                 threatGap = float.MaxValue,
                 preyGap = float.MaxValue,
-                foodGap = float.MaxValue
+                foodSqr = float.MaxValue
             };
 
             threats.Clear();
@@ -192,14 +193,17 @@ namespace QiuQiu
                 if (food != null)
                 {
                     float sqrDistance = ((Vector2)food.transform.position - rb.position).sqrMagnitude;
-                    float gap = Mathf.Sqrt(sqrDistance) - food.Radius;
-                    if (gap < result.foodGap)
+                    if (sqrDistance < result.foodSqr)   // food radii differ by little, center distance is enough
                     {
-                        result.foodGap = gap;
+                        result.foodSqr = sqrDistance;
                         result.nearestFood = food;
                     }
                 }
             }
+
+            result.foodGap = result.nearestFood != null
+                ? Mathf.Sqrt(result.foodSqr) - result.nearestFood.Radius   // one sqrt for the winner, not per candidate
+                : float.MaxValue;
 
             return result;
         }

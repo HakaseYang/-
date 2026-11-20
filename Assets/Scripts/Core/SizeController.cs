@@ -157,14 +157,25 @@ namespace QiuQiu
                 return false;
             }
 
-            float gain = other.mass;   
+            float gain = other.mass;
+            float share = (team == Team.Enemy && other.team == Team.Enemy)
+                ? GameSettings.AiVsAiMassShare          // AI eating AI keeps only half
+                : 1f;
             other.Die(this);
-            AddMassFromEat(gain);
+            AddMassFromEat(gain, share);
             return true;
         }
 
+        // set by GameManager each frame: how big an AI may grow
+        public static float AiMassCap = float.MaxValue;
+
         // for eat,Multiply by difficulty
         public void AddMassFromEat(float rawAmount)
+        {
+            AddMassFromEat(rawAmount, 1f);
+        }
+
+        public void AddMassFromEat(float rawAmount, float share)
         {
             if (IsDead || rawAmount <= 0f)
             {
@@ -175,7 +186,14 @@ namespace QiuQiu
                 ? GameSettings.PlayerEatMultiplier  //is
                 : GameSettings.AiEatMultiplier;     //not
 
-            AddMass(rawAmount * multiplier);
+            float gain = rawAmount * multiplier * Mathf.Max(0f, share);
+
+            if (team == Team.Enemy && mass + gain > AiMassCap)   // an AI stops growing at the cap
+            {
+                gain = Mathf.Max(0f, AiMassCap - mass);
+            }
+
+            AddMass(gain);
         }
 
         public void SetInvulnerable(float seconds)

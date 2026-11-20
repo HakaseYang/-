@@ -140,11 +140,24 @@ namespace QiuQiu
             TickPlayerState();
             TickRespawn();
             TickAiRespawn();
+            UpdateAiMassCap();
 
             if (RemainingTime <= 0f)
             {
                 EndRound();
             }
+        }
+
+        // keep every AI from snowballing past the player
+        private void UpdateAiMassCap()
+        {
+            if (player == null || !player.isActiveAndEnabled)
+            {
+                SizeController.AiMassCap = float.MaxValue;
+                return;
+            }
+
+            SizeController.AiMassCap = Mathf.Max(0f, player.TotalMass) * GameSettings.AiMassCapFactor;
         }
 
         // unscaledDeltaTime：avoid stop game time

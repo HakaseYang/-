@@ -24,6 +24,11 @@ namespace QiuQiu
         public static float PlayerEatMultiplier { get; private set; }
         public static float AiEatMultiplier { get; private set; }
 
+        // AI balance: eating another AI keeps only part of the mass,
+        // and an AI stops growing at a multiple of the player's mass
+        public const float AiVsAiMassShare = 0.5f;
+        public const float AiMassCapFactor = 3f;
+
         private static DifficultyLevel difficulty;
 
         static GameSettings()

@@ -64,6 +64,9 @@ namespace QiuQiu
         public int FinalRank { get; private set; } = 1;
         public int TotalParticipants { get; private set; } = 1;
 
+        // fixed for the whole round: the player plus every AI slot, dead or alive
+        public int ParticipantCount { get; private set; } = 1;
+
         public bool IsRunning { get { return State == RoundState.Playing; } }
         public float WarnTime { get { return warnTime; } }
 
@@ -105,6 +108,8 @@ namespace QiuQiu
         private void Start()
         {
             State = RoundState.Playing;
+            ParticipantCount = 1 + Mathf.Max(aiMaxCount, AliveAiCount);
+            TotalParticipants = ParticipantCount;
             timer.Start(roundDuration);
             nextAiSpawnTime = Time.time + aiRespawnDelay;
 
@@ -154,7 +159,6 @@ namespace QiuQiu
             SizeController.AiMassCap = Mathf.Max(0f, player.TotalMass) * GameSettings.AiMassCapFactor;
         }
 
-        // scaled clock: a pause sets timeScale = 0, so the round clock stops with the world
         private void TickPlayerState()
         {
             // for main ball die
@@ -485,11 +489,10 @@ namespace QiuQiu
         private void ComputeRank()
         {
             int rank;
-            int participants;
-            ScoreBoard.Rank(FinalMass, out rank, out participants);
+            ScoreBoard.Rank(FinalMass, ParticipantCount, out rank);
 
             FinalRank = rank;
-            TotalParticipants = participants;
+            TotalParticipants = ParticipantCount;
         }
     }
 }

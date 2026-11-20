@@ -109,25 +109,15 @@ namespace QiuQiu
             }
         }
 
-        /// <summary>名次 = 1 + 质量比我大的存活对手数；总数 = 存活对手数 + 1。</summary>
+        /// <summary>名次 = 1 + 质量比我大的存活对手数；总数固定为本局参赛人数（玩家 + AI 位）。</summary>
         private void ComputeRank(float myMass)
         {
-            int opponents = 0;
-            int better = 0;
+            GameManager gm = GameManager.Instance;
 
-            var all = SizeController.Registry;
-            for (int i = 0; i < all.Count; i++)
-            {
-                SizeController ball = all[i];
-                if (ball == null || ball.IsDead) continue;
-                if (ball.Team == Team.Player) continue;   // 玩家自己的球不参与“对手”统计
+            TotalParticipants = gm != null ? gm.ParticipantCount : 1 + ScoreBoard.AliveCount(Team.Enemy);
+            ScoreBoard.Rank(myMass, TotalParticipants, out int rank);
 
-                opponents++;
-                if (ball.Mass > myMass) better++;
-            }
-
-            CurrentRank = better + 1;
-            TotalParticipants = opponents + 1;
+            CurrentRank = rank;
         }
     }
 }

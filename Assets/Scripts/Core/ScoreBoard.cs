@@ -24,10 +24,10 @@ namespace QiuQiu
             return count;
         }
 
-        // rank 1 = the biggest ball; participants counts every opponent still alive
-        public static void Rank(float playerMass, out int rank, out int participants)
+        // rank 1 = the biggest ball; totalPlayers stays fixed for the whole round,
+        // so a dead AI never shrinks the denominator the player is scored against
+        public static void Rank(float playerMass, int totalPlayers, out int rank)
         {
-            int alive = 0;
             int better = 0;
             var all = SizeController.Registry;
 
@@ -39,8 +39,6 @@ namespace QiuQiu
                     continue;
                 }
 
-                alive++;
-
                 if (ball.Mass > playerMass)
                 {
                     better++;
@@ -48,7 +46,6 @@ namespace QiuQiu
             }
 
             rank = better + 1;
-            participants = alive + 1;
         }
     }
 }

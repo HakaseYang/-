@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace QiuQiu
@@ -57,7 +56,6 @@ namespace QiuQiu
         // Play Respawn
         public bool IsPlayerRespawning { get; private set; }
 
-        public float RemainingTime { get; private set; }
         public float RespawnTimeLeft { get; private set; }
 
         // Result
@@ -69,12 +67,15 @@ namespace QiuQiu
         public bool IsRunning { get { return State == RoundState.Playing; } }
         public float WarnTime { get { return warnTime; } }
 
-        public event Action<GameManager> GameOver;
+        private readonly RoundTimer timer = new RoundTimer();
+
+        public float RemainingTime { get { return timer.Remaining; } }
 
         private float respawnDeadline = -1f;
         private float nextAiSpawnTime;
         private Vector3 lastDeathPosition;
         private int aiSpawnCounter;
+        private bool loggedMissingSprite;
 
         private void Awake()
         {
@@ -104,7 +105,7 @@ namespace QiuQiu
         private void Start()
         {
             State = RoundState.Playing;
-            RemainingTime = roundDuration;
+            timer.Start(roundDuration);
             nextAiSpawnTime = Time.unscaledTime + aiRespawnDelay;
 
             if (player == null)
@@ -119,14 +120,7 @@ namespace QiuQiu
             PeakMass = player.TotalMass;
             FinalMass = PeakMass;
 
-            if (playerSprite == null && player.MainBall != null)
-            {
-                var sr = player.MainBall.GetComponent<SpriteRenderer>();
-                if (sr != null)
-                {
-                    playerSprite = sr.sprite;
-                }
-            }
+            ResolveBallSprite();
         }
 
         private void Update()
@@ -136,19 +130,19 @@ namespace QiuQiu
                 return;
             }
 
-            TickCountdown();
+            timer.Tick(Time.unscaledDeltaTime);
             TickPlayerState();
             TickRespawn();
             TickAiRespawn();
             UpdateAiMassCap();
 
-            if (RemainingTime <= 0f)
+            if (timer.IsFinished)
             {
                 EndRound();
             }
         }
 
-        // keep every AI from snowballing past the player
+        // make AI snowballing Speed be down
         private void UpdateAiMassCap()
         {
             if (player == null || !player.isActiveAndEnabled)
@@ -161,11 +155,6 @@ namespace QiuQiu
         }
 
         // unscaledDeltaTime：avoid stop game time
-        private void TickCountdown()
-        {
-            RemainingTime = Mathf.Max(0f, RemainingTime - Time.unscaledDeltaTime);
-        }
-
         private void TickPlayerState()
         {
             // for main ball die
@@ -254,14 +243,26 @@ namespace QiuQiu
                 return;
             }
 
+            Sprite sprite = ResolveBallSprite();
+
+            if (sprite == null)
+            {
+                // nothing to draw a ball with: retry instead of leaving the player dead forever
+                if (!loggedMissingSprite)
+                {
+                    loggedMissingSprite = true;
+                    Debug.LogError("[GameManager] no ball sprite in the scene, player respawn will retry every second");
+                }
+
+                IsPlayerRespawning = true;
+                RespawnTimeLeft = 1f;
+                respawnDeadline = Time.unscaledTime + 1f;
+                return;
+            }
+
             IsPlayerRespawning = false;
             RespawnTimeLeft = 0f;
             respawnDeadline = -1f;
-
-            if (playerSprite == null)
-            {
-                return;
-            }
 
             PlayerController controller = PlayerController.Active;
 
@@ -272,7 +273,7 @@ namespace QiuQiu
 
             Vector3 spawn = FindSafeSpawnPoint(playerRespawnMass, lastDeathPosition);
 
-            SizeController ball = controller.SpawnBall("Player", spawn, playerRespawnMass, playerSprite, playerColor);
+            SizeController ball = controller.SpawnBall("Player", spawn, playerRespawnMass, sprite, playerColor);
 
             player = controller;
 
@@ -282,6 +283,41 @@ namespace QiuQiu
             }
 
             ball.SetInvulnerable(respawnInvulnerability);
+        }
+
+        // the sprite can live on the serialized field, on a live ball, or nowhere at all
+        private Sprite ResolveBallSprite()
+        {
+            if (playerSprite != null)
+            {
+                return playerSprite;
+            }
+
+            if (player != null && player.MainBall != null)
+            {
+                var sr = player.MainBall.GetComponent<SpriteRenderer>();
+                if (sr != null && sr.sprite != null)
+                {
+                    return playerSprite = sr.sprite;
+                }
+            }
+
+            var all = SizeController.Registry;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i] == null)
+                {
+                    continue;
+                }
+
+                var sr = all[i].GetComponent<SpriteRenderer>();
+                if (sr != null && sr.sprite != null)
+                {
+                    return playerSprite = sr.sprite;
+                }
+            }
+
+            return null;
         }
 
         private Vector3 FindSafeSpawnPoint(float mass, Vector3 fallback)
@@ -331,25 +367,7 @@ namespace QiuQiu
 
         public int AliveAiCount
         {
-            get
-            {
-                int count = 0;
-                var all = SizeController.Registry;
-
-                for (int i = 0; i < all.Count; i++)
-                {
-                    var ball = all[i];
-                    if (ball == null || ball.IsDead)
-                    {
-                        continue;
-                    }
-                    if (ball.Team == aiTeam)
-                    {
-                        count++;
-                    }
-                }
-                return count;
-            }
+            get { return ScoreBoard.AliveCount(aiTeam); }
         }
 
         private void TickAiRespawn()
@@ -372,7 +390,9 @@ namespace QiuQiu
 
         private SizeController SpawnAi()
         {
-            if (playerSprite == null)
+            Sprite sprite = ResolveBallSprite();
+
+            if (sprite == null)
             {
                 return null;
             }
@@ -391,7 +411,7 @@ namespace QiuQiu
             string aiName = $"AI_{aiSpawnCounter:00}"; // for check
             aiSpawnCounter++;
 
-            var go = BallFactory.CreateBall(aiName, position, mass, playerSprite, color, aiTeam);
+            var go = BallFactory.CreateBall(aiName, position, mass, sprite, color, aiTeam);
 
             var ai = go.AddComponent<AIController>();
             
@@ -413,7 +433,7 @@ namespace QiuQiu
             State = RoundState.Finished;
             IsPlayerRespawning = false;
             RespawnTimeLeft = 0f;
-            RemainingTime = 0f;
+            timer.Start(0f);
 
             if (player == null || !player.isActiveAndEnabled)
             {
@@ -451,8 +471,6 @@ namespace QiuQiu
             Debug.Log($"[结算] 时间到｜最高质量 {PeakMass:F0}｜最终质量 {FinalMass:F0}｜" +
                       $"最终排名 第 {FinalRank} 名 / 共 {TotalParticipants}");  //for check
 
-            GameOver?.Invoke(this);
-
             if (gameOverPanel != null)
             {
                 gameOverPanel.Show(this);
@@ -466,29 +484,12 @@ namespace QiuQiu
 
         private void ComputeRank()
         {
-            int aliveOpponents = 0;
-            int betterThanMe = 0;
-            var all = SizeController.Registry;
+            int rank;
+            int participants;
+            ScoreBoard.Rank(FinalMass, out rank, out participants);
 
-            for (int i = 0; i < all.Count; i++)
-            {
-                var ball = all[i];
-                if (ball == null || ball.IsDead)
-                {
-                    continue;
-                }
-                if (ball.Team == Team.Player)
-                {
-                    continue;
-                }
-
-                aliveOpponents++;
-
-                if (ball.Mass > FinalMass) betterThanMe++;
-            }
-
-            FinalRank = betterThanMe + 1;
-            TotalParticipants = aliveOpponents + 1;   
+            FinalRank = rank;
+            TotalParticipants = participants;
         }
     }
 }

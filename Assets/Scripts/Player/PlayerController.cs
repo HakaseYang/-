@@ -97,9 +97,7 @@ namespace QiuQiu
         [Tooltip("启动时自动把场景里所有 team == 0 的球接管进玩家球列表（列表为空时也会自动重试）。")]
         [SerializeField] private bool autoAdoptPlayerBalls = true;
 
-        private InputAction moveAction;
-        private InputAction splitAction;
-        private InputAction spitAction;
+        private readonly InputReader playerInput = new InputReader();
 
         /// <summary>
         /// 当前所有存活的玩家球（等价于需求里的 activePlayerBalls）。
@@ -111,8 +109,6 @@ namespace QiuQiu
         /// <summary>当前主球 = 质量最大的存活球。每帧动态计算，不缓存死引用。</summary>
         private SizeController mainBall;
 
-        // 虚拟摇杆（手机端）注入的方向，长度已在 SetVirtualMoveInput 中限制到 1
-        private Vector2 virtualMoveInput;
         private Vector2 moveInput;
 
         // 分裂 / 吐球的朝向：最后一次非零输入方向（没有输入时沿用上一次，初始朝右）
@@ -258,6 +254,9 @@ namespace QiuQiu
                 s_PendingTuning = null;
             }
 
+            playerInput.SplitPressed += OnSplitPressed;
+            playerInput.SpitPressed += OnSpitPressed;
+
             ResolveActions();
         }
 
@@ -279,74 +278,43 @@ namespace QiuQiu
 
         private void ResolveActions()
         {
-            if (controls == null)
+            playerInput.Configure(controls, actionMapName, moveActionName, splitActionName, spitActionName);
+            playerInput.Resolve();
+
+            // the component may get the asset after OnEnable already ran
+            if (isActiveAndEnabled)
             {
-                Debug.LogError("[PlayerController] 未指定 Controls Input Action Asset，无法读取输入。", this);
-                return;
+                playerInput.Enable();
             }
-
-            var map = controls.FindActionMap(actionMapName, false);
-            if (map == null)
-            {
-                Debug.LogError($"[PlayerController] Input Action Map '{actionMapName}' 不存在。", this);
-                return;
-            }
-
-            moveAction = map.FindAction(moveActionName, false);
-            splitAction = map.FindAction(splitActionName, false);
-            spitAction = map.FindAction(spitActionName, false);
-
-            if (moveAction == null) Debug.LogError($"[PlayerController] Action '{moveActionName}' 不存在。", this);
-            if (splitAction == null) Debug.LogError($"[PlayerController] Action '{splitActionName}' 不存在。", this);
-            if (spitAction == null) Debug.LogError($"[PlayerController] Action '{spitActionName}' 不存在。", this);
-
-            // 组件可能在 OnEnable 之后才拿到资产，这里补一次启用
-            if (isActiveAndEnabled) EnableActions();
         }
 
-        private void OnEnable() => EnableActions();
+        private void OnEnable()
+        {
+            playerInput.Enable();
+        }
 
         private void OnDisable()
         {
-            // 共享的 InputActionAsset 只能由“当前生效的控制器”关掉。
-            // 场景重载时旧控制器先 OnDisable、新控制器后 Awake 的时序如果反过来，
-            // 就会把新控制器刚打开的 Action 关掉 —— 之前“子球完全不动”的元凶就是这个。
+            // shared InputActionAsset: only the controller that is still Active may switch it off
             if (Active != null && Active != this) return;
 
-            DisableActions();
-        }
-
-        private void EnableActions()
-        {
-            moveAction?.Enable();
-            splitAction?.Enable();
-            spitAction?.Enable();
-
-            if (splitAction != null) splitAction.performed += OnSplitPerformed;
-            if (spitAction != null) spitAction.performed += OnSpitPerformed;
-        }
-
-        private void DisableActions()
-        {
-            if (splitAction != null) splitAction.performed -= OnSplitPerformed;
-            if (spitAction != null) spitAction.performed -= OnSpitPerformed;
-
-            moveAction?.Disable();
-            splitAction?.Disable();
-            spitAction?.Disable();
-
-            virtualMoveInput = Vector2.zero;
+            playerInput.Disable();
             moveInput = Vector2.zero;
         }
 
-        // ------------------------------ 输入回调 ------------------------------
+        private void OnSplitPressed()
+        {
+            TrySplit();
+        }
 
-        private void OnSplitPerformed(InputAction.CallbackContext context) => TrySplit();
-        private void OnSpitPerformed(InputAction.CallbackContext context) => TrySpit();
+        private void OnSpitPressed()
+        {
+            TrySpit();
+        }
 
         private void Update()
         {
-            moveInput = ReadMoveInput();
+            moveInput = playerInput.ReadMove();
         }
 
         private void FixedUpdate()
@@ -430,18 +398,6 @@ namespace QiuQiu
 
             if (ArenaManager.Instance != null)
                 ArenaManager.Instance.Constrain(rb, ball.Radius);
-        }
-
-        /// <summary>键盘 / 手柄（Input System）与虚拟摇杆合并后的方向。</summary>
-        private Vector2 ReadMoveInput()
-        {
-            Vector2 keyboardOrGamepad = moveAction != null
-                ? moveAction.ReadValue<Vector2>()
-                : Vector2.zero;
-
-            return keyboardOrGamepad.sqrMagnitude >= virtualMoveInput.sqrMagnitude
-                ? keyboardOrGamepad
-                : virtualMoveInput;
         }
 
         // ------------------------------ 球列表维护 ------------------------------
@@ -865,7 +821,7 @@ namespace QiuQiu
         /// <summary>虚拟摇杆调用：传入 [-1,1] 范围内的方向。</summary>
         public void SetVirtualMoveInput(Vector2 value)
         {
-            virtualMoveInput = Vector2.ClampMagnitude(value, 1f);
+            playerInput.SetVirtualMoveInput(value);
         }
 
         /// <summary>分裂按钮调用（手机端 UI 或技能系统）。</summary>

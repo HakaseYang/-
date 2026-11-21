@@ -14,7 +14,7 @@ namespace QiuQiu
 
         [Header("Object")]
         [SerializeField] private PlayerController player;
-        [SerializeField] private GameOverPanel gameOverPanel;
+        [SerializeField] private RoundResultPanel resultPanel;
 
         [Header("Timer")]
         [SerializeField] private float roundDuration = 180f;
@@ -91,9 +91,9 @@ namespace QiuQiu
                 player = FindFirstObjectByType<PlayerController>();
             }
 
-            if (gameOverPanel == null)
+            if (resultPanel == null)
             {   //Exclude/Include    > check only active/Both(+ not active) GameObject
-                gameOverPanel = FindFirstObjectByType<GameOverPanel>(FindObjectsInactive.Include);
+                resultPanel = FindFirstObjectByType<RoundResultPanel>(FindObjectsInactive.Include);
             }
         }
 
@@ -472,12 +472,11 @@ namespace QiuQiu
                 AudioListener.pause = true;
             }
 
-            Debug.Log($"[结算] 时间到｜最高质量 {PeakMass:F0}｜最终质量 {FinalMass:F0}｜" +
-                      $"最终排名 第 {FinalRank} 名 / 共 {TotalParticipants}");  //for check
+            Debug.Log($"[round] time up | peak {PeakMass:F0} | final {FinalMass:F0} | rank {FinalRank}/{TotalParticipants}");
 
-            if (gameOverPanel != null)
+            if (resultPanel != null)
             {
-                gameOverPanel.Show(this);
+                resultPanel.Show(this);
             }
         }
 

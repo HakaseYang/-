@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // merge rules: who may merge, the pull animation, and the mass hand-over.
     public class PlayerMerge
     {
         private PlayerRoster roster;
@@ -24,7 +23,7 @@ namespace QiuQiu
             public SizeController keeper;
             public Vector2 startPosition;
             public Vector3 startScale;
-            public float elapsed;
+            public float elapsed;   //time
         }
 
         public void Configure(PlayerRoster roster, PlayerController.PlayerTuning tuning)
@@ -35,20 +34,32 @@ namespace QiuQiu
 
         public void Register(SizeController ball)
         {
-            if (ball == null) return;
-            if (!readyAt.ContainsKey(ball)) readyAt[ball] = 0f;
+            if (ball == null)
+            {
+                return;
+            }
+            if (!readyAt.ContainsKey(ball))
+            {
+                readyAt[ball] = 0f;
+            }
         }
 
-        // a fresh split ball has to wait out the cooldown before it can join again
+        // a fresh split ball need wait cooldown before it can join again
         public void MarkSplit(SizeController ball)
         {
-            if (ball == null) return;
-            readyAt[ball] = Time.time + tuning.mergeCooldown;
+            if (ball == null)
+            {
+                return;
+            }
+                readyAt[ball] = Time.time + tuning.mergeCooldown;
         }
 
         public void Drop(SizeController ball)
         {
-            if (ball == null) return;
+            if (ball == null)
+            {
+                return;
+            }
             readyAt.Remove(ball);
             merging.Remove(ball);
             jobs.RemoveAll(job => job.small == ball);
@@ -56,21 +67,24 @@ namespace QiuQiu
 
         public bool CanMerge(SizeController ball)
         {
-            if (ball == null || ball.IsDead) return false;
-            if (merging.Contains(ball)) return false;
-            if (!readyAt.TryGetValue(ball, out float at)) return false;
-            return Time.time >= at;
+            if (ball == null || ball.IsDead)
+            {
+                return false;
+            }
+            if (merging.Contains(ball)) //when  mergeing
+            {
+                return false;   
+            }
+            if (!readyAt.TryGetValue(ball, out float at))      //not have Register
+            {
+                return false;
+            }
+            return Time.time >= at; //can
         }
 
         public bool IsMerging(SizeController ball)
         {
             return ball != null && merging.Contains(ball);
-        }
-
-        public float CooldownRemaining(SizeController ball)
-        {
-            if (ball == null) return 0f;
-            return readyAt.TryGetValue(ball, out float at) ? Mathf.Max(0f, at - Time.time) : 0f;
         }
 
         // one step per fixed frame: finish the running pull first, then look for a new pair

@@ -582,11 +582,6 @@ namespace QiuQiu
             return merge.IsMerging(ball);
         }
 
-        public float MergeCooldownRemaining(SizeController ball)
-        {
-            return merge.CooldownRemaining(ball);
-        }
-
         // -------------------- 移动端 / UI 调用入口 --------------------
 
         /// <summary>虚拟摇杆调用：传入 [-1,1] 范围内的方向。</summary>

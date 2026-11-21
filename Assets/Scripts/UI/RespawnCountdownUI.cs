@@ -9,8 +9,6 @@ namespace QiuQiu
         [Header("Refs")]
         [SerializeField] private Text countdownText;
 
-        [SerializeField] private Text hintText;
-
         [SerializeField] private GameObject root;
 
         [SerializeField] private GameManager gameManager;
@@ -18,7 +16,6 @@ namespace QiuQiu
         [Header("Style")]
         [SerializeField] private Color countdownColor = new Color(1f, 0.92f, 0.55f, 1f);
         [SerializeField] private string countdownFormat = "RESPAWN IN {0}";
-        [SerializeField] private string hint = "You were eaten, respawning at a safe spot";
 
         private float nextRefreshTime;
         private int lastShown = -1;
@@ -38,14 +35,9 @@ namespace QiuQiu
             {
                 countdownText = GetComponentInChildren<Text>(true);
             }
-
             if (countdownText != null)
             {
                 countdownText.color = countdownColor;
-            }
-            if (hintText != null && !string.IsNullOrEmpty(hint))
-            {
-                hintText.text = hint;
             }
 
             SetShown(false);

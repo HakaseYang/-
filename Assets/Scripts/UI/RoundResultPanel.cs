@@ -1,10 +1,10 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace QiuQiu
 {
-    [DisallowMultipleComponent]
-    public class GameOverPanel : MonoBehaviour
+    public class RoundResultPanel : MonoBehaviour
     {
         [Header("Panel")]
         [SerializeField] private GameObject panelRoot;
@@ -18,14 +18,7 @@ namespace QiuQiu
         [SerializeField] private Button restartButton;
         [SerializeField] private Button backToMenuButton;
 
-        [Header("Restart delay in seconds, 0 = instant")]
-        [SerializeField] private float restartDelay = 0f;
-
-        [Header("Auto select a button when shown")]
-        [SerializeField] private bool selectButtonOnShow = true;
-
         private GameManager gameManager;
-        private float pendingRestartAt = -1f;
 
         private void Awake()
         {
@@ -54,21 +47,6 @@ namespace QiuQiu
             Hide();
         }
 
-        private void Update()
-        {
-            if (pendingRestartAt < 0f)
-            {
-                return;
-            }
-
-            // unscaled time, timeScale is 0 while the result screen is up
-            if (Time.unscaledTime >= pendingRestartAt)
-            {
-                pendingRestartAt = -1f;
-                RestartNow();
-            }
-        }
-
         public void Show(GameManager manager)
         {
             // the root may be inactive, so light it up before the children
@@ -93,7 +71,7 @@ namespace QiuQiu
 
             if (titleText != null)
             {
-                titleText.text = "GAME OVER";
+                titleText.text = "ROUND OVER";
             }
 
             if (peakMassText != null)
@@ -112,12 +90,13 @@ namespace QiuQiu
 
             if (AudioManager.Instance != null)
             {
-                AudioManager.Instance.PlayGameOver();
+                AudioManager.Instance.PlayRoundEnd();
             }
 
-            if (selectButtonOnShow && restartButton != null && UnityEngine.EventSystems.EventSystem.current != null)
+            // keyboard and gamepad players should reach restart without a mouse
+            if (restartButton != null && EventSystem.current != null)
             {
-                UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(restartButton.gameObject);
+                EventSystem.current.SetSelectedGameObject(restartButton.gameObject);
             }
         }
 
@@ -139,22 +118,6 @@ namespace QiuQiu
                 AudioManager.Instance.PlayBGM();
             }
 
-            if (restartDelay > 0f)
-            {
-                pendingRestartAt = Time.unscaledTime + restartDelay;
-                if (restartButton != null)
-                {
-                    restartButton.interactable = false;
-                }
-
-                return;
-            }
-
-            RestartNow();
-        }
-
-        private void RestartNow()
-        {
             SceneFlow.Reload();
         }
 

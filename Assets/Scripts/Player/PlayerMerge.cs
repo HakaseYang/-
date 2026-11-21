@@ -160,7 +160,7 @@ namespace QiuQiu
                 // either side may be eaten mid-pull: give up instead of pushing a dead ball around
                 if (job.small == null || job.keeper == null || job.small.IsDead || job.keeper.IsDead)
                 {
-                    if (job.small != null) merging.Remove(job.small);
+                    Abort(job);
                     jobs.RemoveAt(i);
                     continue;
                 }
@@ -187,6 +187,40 @@ namespace QiuQiu
                 job.small.Die(job.keeper);
 
                 Debug.Log($"[合体] 完成：{keeperBefore:F0} + {gain:F0} → {job.keeper.Mass:F0}，球数 {roster.Count}");
+            }
+        }
+
+        // a pull that never finishes must not leave the small ball without its colliders and drive:
+        // give the body back, otherwise it can neither be eaten nor follow the main ball
+        private void Abort(Job job)
+        {
+            SizeController small = job.small;
+            if (small == null)
+            {
+                return;
+            }
+
+            merging.Remove(small);
+
+            Rigidbody2D body = small.GetComponent<Rigidbody2D>();
+            if (body != null)
+            {
+                body.position = job.startPosition;
+                body.linearVelocity = Vector2.zero;
+            }
+
+            small.ApplySizeNow();
+
+            PlayerSubBall sub = small.GetComponent<PlayerSubBall>();
+            if (sub != null)
+            {
+                sub.enabled = true;
+            }
+
+            Collider2D[] colliders = small.GetComponentsInChildren<Collider2D>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                colliders[i].enabled = true;
             }
         }
     }

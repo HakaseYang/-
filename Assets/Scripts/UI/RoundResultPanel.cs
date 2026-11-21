@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace QiuQiu
@@ -32,8 +31,7 @@ namespace QiuQiu
                 gameManager = FindFirstObjectByType<GameManager>();
             }
 
-            // wire the click in code only when no persistent listener is set,
-            // otherwise one click reloads twice and the screen blinks
+            //avoid two clike(even) happen
             if (restartButton != null && restartButton.onClick.GetPersistentEventCount() == 0)
             {
                 restartButton.onClick.AddListener(Restart);
@@ -49,7 +47,6 @@ namespace QiuQiu
 
         public void Show(GameManager manager)
         {
-            // the root may be inactive, so light it up before the children
             if (!gameObject.activeSelf)
             {
                 gameObject.SetActive(true);
@@ -93,11 +90,7 @@ namespace QiuQiu
                 AudioManager.Instance.PlayRoundEnd();
             }
 
-            // keyboard and gamepad players should reach restart without a mouse
-            if (restartButton != null && EventSystem.current != null)
-            {
-                EventSystem.current.SetSelectedGameObject(restartButton.gameObject);
-            }
+
         }
 
         public void Hide()

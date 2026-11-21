@@ -110,23 +110,8 @@ namespace QiuQiu
         // 分裂 / 吐球的朝向：最后一次非零输入方向（没有输入时沿用上一次，初始朝右）
         private Vector2 facing = Vector2.right;
 
-        // 每个球“允许合体”的时间点（Time.time）。主球是 0（永远可合体），子球分裂时 = Time.time + mergeCooldown
-        private readonly Dictionary<SizeController, float> mergeReadyAt = new Dictionary<SizeController, float>();
-
-        // 正在执行“吸附过渡”的合体任务
-        private readonly List<MergeJob> mergeJobs = new List<MergeJob>();
-
-        // 正处于合体过程中、马上要被销毁的小球（用它来区分“被敌人吃掉”和“自己合体”）
-        private readonly HashSet<SizeController> mergingBalls = new HashSet<SizeController>();
-
-        private sealed class MergeJob
-        {
-            public SizeController small;
-            public SizeController keeper;
-            public Vector2 startPosition;
-            public Vector3 startScale;
-            public float elapsed;
-        }
+        // merge rules (cooldown, pull animation, mass hand-over) live in PlayerMerge
+        private readonly PlayerMerge merge = new PlayerMerge();
 
         /// <summary>
         /// 一份“可拷贝”的调参快照：保留给 GameManager 在重开一局时还原手调数值。
@@ -229,7 +214,7 @@ namespace QiuQiu
             mergePullDuration = tuning.mergePullDuration;
             mergePullEase = tuning.mergePullEase;
 
-            SyncActions();
+            SyncTools();
             ResolveActions();
         }
 
@@ -251,14 +236,16 @@ namespace QiuQiu
             playerInput.SplitPressed += OnSplitPressed;
             playerInput.SpitPressed += OnSpitPressed;
 
-            SyncActions();
+            SyncTools();
             ResolveActions();
         }
 
-        // the split / spit numbers live in the inspector fields above, so they are copied over here
-        private void SyncActions()
+        // the split / spit / merge numbers live in the inspector fields above, so they are copied over here
+        private void SyncTools()
         {
-            actions.Configure(roster, SpawnBall, CaptureTuning(), name);
+            PlayerTuning snapshot = CaptureTuning();
+            actions.Configure(roster, SpawnBall, snapshot, name);
+            merge.Configure(roster, snapshot);
         }
 
         private void OnDestroy()
@@ -339,8 +326,7 @@ namespace QiuQiu
             MovePlayerBalls(input);
 
             // 6. 合体：先推进已有的吸附动画，再检测新的可合体配对
-            UpdateMergeJobs();
-            DetectMerges();
+            merge.Tick(Time.fixedDeltaTime);
         }
 
         /// <summary>
@@ -413,7 +399,7 @@ namespace QiuQiu
             roster.Add(ball);
             ball.Eaten += OnBallEaten;
 
-            if (!mergeReadyAt.ContainsKey(ball)) mergeReadyAt[ball] = 0f;
+            merge.Register(ball);
         }
 
         /// <summary>把一颗球移出玩家控制（被吃掉 / 主动丢弃）。</summary>
@@ -423,18 +409,14 @@ namespace QiuQiu
 
             ball.Eaten -= OnBallEaten;
             roster.Remove(ball);
-            mergeReadyAt.Remove(ball);
-            mergingBalls.Remove(ball);
-            mergeJobs.RemoveAll(job => job.small == ball);
+            merge.Drop(ball);
         }
 
-        // one place unhooks a ball the roster dropped: events plus cooldown bookkeeping
+        // one place unhooks a ball the roster dropped: events plus merge bookkeeping
         private void UnhookBall(SizeController ball)
         {
             ball.Eaten -= OnBallEaten;
-            mergeReadyAt.Remove(ball);
-            mergingBalls.Remove(ball);
-            mergeJobs.RemoveAll(job => job.small == ball);
+            merge.Drop(ball);
         }
 
         /// <summary>
@@ -464,12 +446,15 @@ namespace QiuQiu
         private void OnBallEaten(SizeController victim, SizeController killer)
         {
             victim.Eaten -= OnBallEaten;
-            mergeReadyAt.Remove(victim);
-            mergingBalls.Remove(victim);
-            mergeJobs.RemoveAll(job => job.small == victim);
+
+            // a merged ball also fires Eaten: do not report it as eaten by an enemy
+            bool mergedIn = merge.IsMerging(victim);
+            merge.Drop(victim);
 
             bool wasMain = roster.Main == victim;
             roster.Remove(victim);
+
+            if (mergedIn) return;
 
             string killerName = killer != null ? killer.name : "未知";
 
@@ -514,7 +499,7 @@ namespace QiuQiu
             sub.Initialize(this, actions.SlotAngleFor(roster.Count - 1));
 
             // a fresh split ball has to wait out the merge cooldown before it can join again
-            mergeReadyAt[newBall] = Time.time + mergeCooldown;
+            merge.MarkSplit(newBall);
 
             Debug.Log($"[split] {source.Mass + newMass:F0} -> {source.Mass:F0} + {newMass:F0}, balls {roster.Count}/{maxBallCount}");
             if (AudioManager.Instance != null) AudioManager.Instance.PlaySplit();
@@ -587,125 +572,19 @@ namespace QiuQiu
 
         // ------------------------------ 合体 ------------------------------
 
-        /// <summary>这个球现在能不能参与合体（冷却结束、没在合体中、还活着）。</summary>
         public bool CanMerge(SizeController ball)
         {
-            if (ball == null || ball.IsDead) return false;
-            if (mergingBalls.Contains(ball)) return false;
-            if (!mergeReadyAt.TryGetValue(ball, out float readyAt)) return false;
-            return Time.time >= readyAt;
+            return merge.CanMerge(ball);
         }
 
-        /// <summary>这个球是否正在执行合体吸附。</summary>
-        public bool IsMerging(SizeController ball) => ball != null && mergingBalls.Contains(ball);
+        public bool IsMerging(SizeController ball)
+        {
+            return merge.IsMerging(ball);
+        }
 
-        /// <summary>距离可合体还剩多少秒（给 UI 倒计时用）。</summary>
         public float MergeCooldownRemaining(SizeController ball)
         {
-            if (ball == null) return 0f;
-            return mergeReadyAt.TryGetValue(ball, out float readyAt) ? Mathf.Max(0f, readyAt - Time.time) : 0f;
-        }
-
-        /// <summary>两两检测玩家球是否重叠；重叠且都过了冷却就开始合体。</summary>
-        private void DetectMerges()
-        {
-            if (roster.Count < 2) return;
-            if (mergeJobs.Count > 0) return;    // 一次只处理一对，避免连锁抖动
-
-            for (int i = 0; i < roster.Count; i++)
-            {
-                var a = roster.Balls[i];
-                if (a == null || a.IsDead || !CanMerge(a)) continue;
-
-                for (int j = i + 1; j < roster.Count; j++)
-                {
-                    var b = roster.Balls[j];
-                    if (b == null || b.IsDead || !CanMerge(b)) continue;
-
-                    // 两个球都有实体碰撞体，物理上最多“贴住”，不会真的重叠。
-                    // 所以判定用「接触」：中心距 <= 半径和 + 余量。冷却时间才是真正的门槛。
-                    float contactDistance = a.Radius + b.Radius + mergeContactTolerance;
-                    if (Vector2.Distance(a.transform.position, b.transform.position) > contactDistance) continue;
-
-                    StartMerge(a, b);
-                    return;
-                }
-            }
-        }
-
-        private void StartMerge(SizeController a, SizeController b)
-        {
-            // 保留方：主球永远保留（玩家控制的对象不能被自己的子球吃掉），否则留质量大的
-            SizeController keeper;
-            SizeController small;
-
-            if (a == roster.Main) { keeper = a; small = b; }
-            else if (b == roster.Main) { keeper = b; small = a; }
-            else if (a.Mass >= b.Mass) { keeper = a; small = b; }
-            else { keeper = b; small = a; }
-
-            // 小球交出控制权：停掉弹簧跟随，进入吸附过渡
-            var sub = small.GetComponent<PlayerSubBall>();
-            if (sub != null) sub.enabled = false;
-
-            // 吸附期间关掉它的碰撞体：否则它会一路把主球顶飞，也避免途中再触发吞噬/碰撞事件
-            var smallColliders = small.GetComponentsInChildren<Collider2D>();
-            for (int i = 0; i < smallColliders.Length; i++) smallColliders[i].enabled = false;
-
-            mergingBalls.Add(small);
-            mergeJobs.Add(new MergeJob
-            {
-                small = small,
-                keeper = keeper,
-                startPosition = small.transform.position,
-                startScale = small.transform.localScale,
-                elapsed = 0f
-            });
-
-            Debug.Log($"[合体] 开始吸附：{small.name}({small.Mass:F0}) → {keeper.name}({keeper.Mass:F0})");
-        }
-
-        private void UpdateMergeJobs()
-        {
-            if (mergeJobs.Count == 0) return;
-
-            for (int i = mergeJobs.Count - 1; i >= 0; i--)
-            {
-                var job = mergeJobs[i];
-
-                // 任何一方意外消失（例如被敌人吃了），放弃这次合体
-                if (job.small == null || job.keeper == null || job.small.IsDead || job.keeper.IsDead)
-                {
-                    if (job.small != null) mergingBalls.Remove(job.small);
-                    mergeJobs.RemoveAt(i);
-                    continue;
-                }
-
-                job.elapsed += Time.fixedDeltaTime;
-                float t = Mathf.Clamp01(job.elapsed / Mathf.Max(0.01f, mergePullDuration));
-                float eased = Mathf.Pow(t, mergePullEase);   // 先慢后快，像被“吸”进去
-
-                Vector2 position = Vector2.Lerp(job.startPosition, job.keeper.transform.position, eased);
-                var rbSmall = job.small.GetComponent<Rigidbody2D>();
-                if (rbSmall != null) rbSmall.MovePosition(position);
-
-                // 视觉上“被吸进去”：小球同时收缩，避免到点突然消失
-                job.small.transform.localScale = Vector3.Lerp(job.startScale, Vector3.zero, eased);
-
-                if (t < 1f) continue;
-
-                // 过渡结束：先退订任务，再结算质量 / 销毁，避免在事件回调里改列表
-                mergeJobs.RemoveAt(i);
-
-                float gain = job.small.Mass;
-                float keeperMassBefore = job.keeper.Mass;
-
-                job.keeper.AddMass(gain);
-                job.small.Die(job.keeper);   // Die 会触发 Eaten -> OnBallEaten 做清理
-
-                Debug.Log($"[合体] 完成：{keeperMassBefore:F0} + {gain:F0} → {job.keeper.Mass:F0}，" +
-                          $"球数 {roster.Count}");
-            }
+            return merge.CooldownRemaining(ball);
         }
 
         // -------------------- 移动端 / UI 调用入口 --------------------

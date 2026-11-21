@@ -102,13 +102,13 @@ namespace QiuQiu
         // the list of balls and the main ball live in PlayerRoster
         private readonly PlayerRoster roster = new PlayerRoster();
 
+        // split / spit rules (cooldowns, mass math, spawn point) live in PlayerActions
+        private readonly PlayerActions actions = new PlayerActions();
+
         private Vector2 moveInput;
 
         // 分裂 / 吐球的朝向：最后一次非零输入方向（没有输入时沿用上一次，初始朝右）
         private Vector2 facing = Vector2.right;
-
-        private float nextSplitTime;
-        private float nextSpitTime;
 
         // 每个球“允许合体”的时间点（Time.time）。主球是 0（永远可合体），子球分裂时 = Time.time + mergeCooldown
         private readonly Dictionary<SizeController, float> mergeReadyAt = new Dictionary<SizeController, float>();
@@ -229,6 +229,7 @@ namespace QiuQiu
             mergePullDuration = tuning.mergePullDuration;
             mergePullEase = tuning.mergePullEase;
 
+            SyncActions();
             ResolveActions();
         }
 
@@ -250,7 +251,14 @@ namespace QiuQiu
             playerInput.SplitPressed += OnSplitPressed;
             playerInput.SpitPressed += OnSpitPressed;
 
+            SyncActions();
             ResolveActions();
+        }
+
+        // the split / spit numbers live in the inspector fields above, so they are copied over here
+        private void SyncActions()
+        {
+            actions.Configure(roster, SpawnBall, CaptureTuning(), name);
         }
 
         private void OnDestroy()
@@ -448,7 +456,7 @@ namespace QiuQiu
                 if (roster.Count > 1 && ball.GetComponent<PlayerSubBall>() == null)
                 {
                     var sub = ball.gameObject.AddComponent<PlayerSubBall>();
-                    sub.Initialize(this, SlotAngleFor(roster.Count - 1));
+                    sub.Initialize(this, actions.SlotAngleFor(roster.Count - 1));
                 }
             }
         }
@@ -492,104 +500,37 @@ namespace QiuQiu
             if (GameManager.Instance != null) GameManager.Instance.NotifyPlayerDefeated(killer);
         }
 
-        /// <summary>给第 index 个子球分配一个环上的槽位角度（度）。</summary>
-        private float SlotAngleFor(int index)
-        {
-            int slots = Mathf.Max(1, maxBallCount - 1);
-            return 90f + 360f / slots * (index - 1);
-        }
+        // ------------------------------ 分裂 / 吐球 ------------------------------
 
-        // ------------------------------ 分裂 ------------------------------
-
-        /// <summary>尝试分裂。返回是否真的分裂成功。</summary>
         public bool TrySplit()
         {
-            if (Time.time < nextSplitTime) return false;
+            SizeController source;
+            SizeController newBall;
+            float newMass;
 
-            // 主球优先原则：永远从当前质量最大的存活球上分裂
-            SizeController source = roster.Largest();
-            if (source == null) return false;
+            if (!actions.TrySplit(facing, out source, out newBall, out newMass)) return false;
 
-            if (source.Mass <= splitMinMass)
-            {
-                Debug.Log($"[分裂] 质量 {source.Mass:F0} 不足（需要 > {splitMinMass:F0}），无法分裂");
-                return false;
-            }
+            PlayerSubBall sub = newBall.gameObject.AddComponent<PlayerSubBall>();
+            sub.Initialize(this, actions.SlotAngleFor(roster.Count - 1));
 
-            if (roster.Count >= maxBallCount)
-            {
-                Debug.Log($"[分裂] 已达球数上限 {maxBallCount}，无法继续分裂");
-                return false;
-            }
+            // a fresh split ball has to wait out the merge cooldown before it can join again
+            mergeReadyAt[newBall] = Time.time + mergeCooldown;
 
-            nextSplitTime = Time.time + splitCooldown;
-
-            float newMass = source.Mass * splitMassRatio;
-            source.SetMass(source.Mass - newMass);   // 母球先减半
-
-            var srcRenderer = source.GetComponent<SpriteRenderer>();
-            Sprite sprite = srcRenderer != null ? srcRenderer.sprite : null;
-            Color color = srcRenderer != null ? srcRenderer.color : Color.cyan;
-
-            Vector2 dir = facing.sqrMagnitude > 0.0001f ? facing : Vector2.right;
-            float spawnDistance = source.Radius * 2f + splitSpawnGap;
-            Vector3 spawnPosition = source.transform.position + (Vector3)(dir * spawnDistance);
-
-            SizeController newBall = SpawnBall(
-                $"{name}_Ball{roster.Count}", spawnPosition, newMass, sprite, color);
-
-            if (newBall == null) return false;
-
-            var newRb = newBall.GetComponent<Rigidbody2D>();
-            if (newRb != null) newRb.linearVelocity = dir * splitLaunchSpeed;
-
-            // 子球按固定槽位环绕主球，槽位均分一圈
-            var sub = newBall.gameObject.AddComponent<PlayerSubBall>();
-            sub.Initialize(this, SlotAngleFor(roster.Count - 1));
-
-            mergeReadyAt[newBall] = Time.time + mergeCooldown;   // 分裂出的球要等冷却结束才能合体
-
-            Debug.Log($"[分裂] 母球 {source.Mass + newMass:F0} → {source.Mass:F0} + 新球 {newMass:F0}，" +
-                      $"球数 {roster.Count}/{maxBallCount}，初速度 {splitLaunchSpeed}");
-            AudioManager.Instance.PlaySplit();
+            Debug.Log($"[split] {source.Mass + newMass:F0} -> {source.Mass:F0} + {newMass:F0}, balls {roster.Count}/{maxBallCount}");
+            if (AudioManager.Instance != null) AudioManager.Instance.PlaySplit();
             return true;
         }
 
-        // ------------------------------ 吐球 ------------------------------
-
-        /// <summary>尝试吐球。返回是否真的吐出去。</summary>
         public bool TrySpit()
         {
-            if (Time.time < nextSpitTime) return false;
+            SizeController source;
 
-            SizeController source = roster.Largest();
-            if (source == null) return false;
+            if (!actions.TrySpit(facing, out source)) return false;
 
-            if (!source.TryConsumeMass(spitMassCost, minMassAfterSpit))
-            {
-                Debug.Log($"[吐球] 质量 {source.Mass:F0} 不足（需要 > {spitMassCost + minMassAfterSpit:F0}），无法吐球");
-                return false;
-            }
-
-            nextSpitTime = Time.time + spitCooldown;
-
-            var srcRenderer = source.GetComponent<SpriteRenderer>();
-            Sprite sprite = srcRenderer != null ? srcRenderer.sprite : null;
-            Color color = srcRenderer != null ? srcRenderer.color : Color.cyan;
-
-            Vector2 dir = facing.sqrMagnitude > 0.0001f ? facing : Vector2.right;
-            float spawnDistance = source.Radius + spitSpawnGap;
-            Vector3 spawnPosition = source.transform.position + (Vector3)(dir * spawnDistance);
-
-            BallFactory.CreateSpitFood(
-                "SpitFood", spawnPosition, dir * spitLaunchSpeed, spitFoodMass, sprite, lighten(color), spitArmDelay);
-
-            Debug.Log($"[吐球] 消耗 {spitMassCost:F0} 质量 → 吐出质量 {spitFoodMass:F0} 的食物，" +
-                      $"速度 {spitLaunchSpeed}，剩余质量 {source.Mass:F0}");
-            AudioManager.Instance.PlaySpit();
+            Debug.Log($"[spit] {source.Mass:F0} left, food mass {spitFoodMass:F0}");
+            if (AudioManager.Instance != null) AudioManager.Instance.PlaySpit();
             return true;
         }
-
         // ------------------------------ 球的生成 ------------------------------
 
         /// <summary>
@@ -765,16 +706,6 @@ namespace QiuQiu
                 Debug.Log($"[合体] 完成：{keeperMassBefore:F0} + {gain:F0} → {job.keeper.Mass:F0}，" +
                           $"球数 {roster.Count}");
             }
-        }
-
-        /// <summary>吐出物的颜色稍微提亮，便于和普通食物区分。</summary>
-        private static Color lighten(Color c)
-        {
-            return new Color(
-                Mathf.Lerp(c.r, 1f, 0.35f),
-                Mathf.Lerp(c.g, 1f, 0.35f),
-                Mathf.Lerp(c.b, 1f, 0.35f),
-                c.a);
         }
 
         // -------------------- 移动端 / UI 调用入口 --------------------

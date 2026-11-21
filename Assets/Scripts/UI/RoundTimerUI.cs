@@ -3,7 +3,6 @@ using UnityEngine.UI;
 
 namespace QiuQiu
 {
-    [DisallowMultipleComponent]
     public class RoundTimerUI : MonoBehaviour
     {
         [Header("Refs")]
@@ -63,11 +62,12 @@ namespace QiuQiu
             if (force || totalSeconds != lastShownSeconds)
             {
                 lastShownSeconds = totalSeconds;
+                /// 60Minutes,%60Seconds
                 timerText.text = $"{totalSeconds / 60:00}:{totalSeconds % 60:00}";
             }
 
-            // the last warn seconds turn red and pulse so the clock reads from the corner of the eye
-            bool urgent = remaining <= Mathf.Max(0f, gameManager.WarnTime);
+            // the last warn seconds turn red and pulse 
+            bool urgent = remaining <=  gameManager.WarnTime;
             if (urgent && pulseSpeed > 0.01f)
             {
                 float t = (Mathf.Sin(Time.unscaledTime * pulseSpeed * Mathf.PI * 2f) + 1f) * 0.5f;

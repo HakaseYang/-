@@ -13,13 +13,10 @@ namespace QiuQiu
 
         public static int Created { get { return created; } }
         public static int FreeCount { get { return free.Count; } }
-
-        // let the scene own the container: live food and parked shells then share one parent
         public static void UseRoot(Transform container)
         {
             if (container != root)
             {
-                // a new scene means the old shells died with it, keep nothing stale
                 free.Clear();
                 created = 0;
             }

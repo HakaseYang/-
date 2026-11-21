@@ -4,7 +4,6 @@ using UnityEngine.InputSystem;
 namespace QiuQiu
 {
     // reads the Player action map and merges it with the on screen stick.
-    // kept out of PlayerController so the input wiring can be read in one screen.
     public class InputReader
     {
         private InputActionAsset controls;
@@ -31,8 +30,6 @@ namespace QiuQiu
             splitActionName = splitName;
             spitActionName = spitName;
         }
-
-        // find the actions again; safe to call from Awake and from ApplyTuning
         public void Resolve()
         {
             if (controls == null)
@@ -41,7 +38,7 @@ namespace QiuQiu
                 return;
             }
 
-            var map = controls.FindActionMap(actionMapName, false);
+            var map = controls.FindActionMap(actionMapName, false); //if not find return false
             if (map == null)
             {
                 Debug.LogError($"[InputReader] Input Action Map '{actionMapName}' does not exist");
@@ -89,7 +86,7 @@ namespace QiuQiu
         {
             if (!listening)
             {
-                virtualMoveInput = Vector2.zero;
+                virtualMoveInput = Vector2.zero;    // drop the stick cache
                 return;
             }
 
@@ -105,27 +102,41 @@ namespace QiuQiu
 
         // keyboard / gamepad and the on screen stick, whichever pushes harder
         public Vector2 ReadMove()
-        {
+        {   
+            //get input( stick or WASD)
             Vector2 pad = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
-
+            //Keyboard/ Mobile Joystick choses 1 (see who using)
             return pad.sqrMagnitude >= virtualMoveInput.sqrMagnitude ? pad : virtualMoveInput;
         }
 
         public void SetVirtualMoveInput(Vector2 value)
         {
+            //avoid ��2 speed 
             virtualMoveInput = Vector2.ClampMagnitude(value, 1f);
         }
 
         private void Subscribe()
         {
-            if (splitAction != null) splitAction.performed += OnSplitPerformed;
-            if (spitAction != null) spitAction.performed += OnSpitPerformed;
+            if (splitAction != null)
+            {
+                splitAction.performed += OnSplitPerformed;
+            }
+            if (spitAction != null)
+            {
+                spitAction.performed += OnSpitPerformed;
+            }
         }
 
         private void Unsubscribe()
         {
-            if (splitAction != null) splitAction.performed -= OnSplitPerformed;
-            if (spitAction != null) spitAction.performed -= OnSpitPerformed;
+            if (splitAction != null)
+            {
+                splitAction.performed -= OnSplitPerformed;
+            }
+            if (spitAction != null)
+            {
+                spitAction.performed -= OnSpitPerformed;
+            }
         }
 
         private void OnSplitPerformed(InputAction.CallbackContext context)

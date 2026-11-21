@@ -159,15 +159,15 @@ namespace QiuQiu
 
             float gain = other.mass;
             float share = (team == Team.Enemy && other.team == Team.Enemy)
-                ? GameSettings.AiVsAiMassShare          // AI eating AI keeps only half
-                : 1f;
+                ? GameSettings.AiVsAiMassShare          // AI eating AI  only half
+                : 1f;                                   //AI eat Player nurmal
             other.Die(this);
             AddMassFromEat(gain, share);
             return true;
         }
 
-        // set by GameManager each frame: how big an AI may grow
-        public static float AiMassCap = float.MaxValue;
+        // set by GameManager : how big an AI may grow,float.MaxValue just work for sure AI can grow
+        public static float AiMassCap = float.MaxValue; //Sentinel Value
 
         // for eat,Multiply by difficulty
         public void AddMassFromEat(float rawAmount)

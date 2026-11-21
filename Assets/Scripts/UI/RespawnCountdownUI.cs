@@ -25,8 +25,6 @@ namespace QiuQiu
         {
             gameManager = HudRefresh.Resolve(gameManager);
 
-            // toggle a child container, never this object: SetActive(false) stops
-            // this script and it could never show again
             if (root == null)
             {
                 root = transform.childCount > 0 ? transform.GetChild(0).gameObject : null;

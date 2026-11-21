@@ -220,29 +220,18 @@ namespace QiuQiu
             cam.orthographicSize = Mathf.Max(minOrthographicSize, next);
         }
 
+        //to check hava or not have ball will be cut out in camera
         private static bool WouldClip(float size, float halfWidth, float halfHeight, float aspect)
         {
             const float epsilon = 0.01f;
             return halfHeight > size + epsilon || halfWidth > size * aspect + epsilon;
         }
 
+        //get aspect ratio to avoid camera cut ball size that can't to see
         private float GetAspect()
         {
             float aspect = cam != null ? cam.aspect : 0f;
             return aspect > 0.0001f ? aspect : 1f;
-        }
-
-        private void OnDrawGizmosSelected()
-        {
-            if (!Application.isPlaying) return;
-
-            PlayerFrame frame = CaptureFrame();
-            if (!frame.valid) return;
-
-            // the ball box the framing math has to fit
-            Gizmos.color = new Color(0.3f, 0.9f, 1f, 0.6f);
-            Gizmos.DrawWireCube(BoundsCenterOf(frame),
-                                new Vector3(frame.maxX - frame.minX, frame.maxY - frame.minY, 0f));
         }
     }
 }

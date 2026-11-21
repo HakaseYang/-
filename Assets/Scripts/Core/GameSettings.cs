@@ -24,8 +24,8 @@ namespace QiuQiu
         public static float PlayerEatMultiplier { get; private set; }
         public static float AiEatMultiplier { get; private set; }
 
-        // AI balance: eating another AI keeps only part of the mass,
-        // and an AI stops growing at a multiple of the player's mass
+        // AI balance: eating another AI only 50 %,
+        // and only moire then 30% of player
         public const float AiVsAiMassShare = 0.5f;
         public const float AiMassCapFactor = 3f;
 
@@ -63,7 +63,7 @@ namespace QiuQiu
             AiEatMultiplier = AiEatTable[index];
         }
 
-        //sure only 1-3
+        //sure only 1-3(0-2)
         private static DifficultyLevel ClampLevel(int raw)
         {
             return (DifficultyLevel)Mathf.Clamp(raw, (int)DifficultyLevel.Easy, (int)DifficultyLevel.Hard);

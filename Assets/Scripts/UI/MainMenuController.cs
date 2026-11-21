@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    [DisallowMultipleComponent]
     public class MainMenuController : MonoBehaviour
     {
         public void Play(int level)
@@ -44,6 +43,7 @@ namespace QiuQiu
 
             Debug.Log("[menu] quit");
 
+            //for test
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #else

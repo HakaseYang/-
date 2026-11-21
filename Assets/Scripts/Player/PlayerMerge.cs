@@ -87,18 +87,24 @@ namespace QiuQiu
             return ball != null && merging.Contains(ball);
         }
 
-        // one step per fixed frame: finish the running pull first, then look for a new pair
+        //  finish the running pull first, then look for a new pair
         public void Tick(float deltaTime)
         {
             UpdateJobs(deltaTime);
-            if (jobs.Count == 0) Detect();
+            if (jobs.Count == 0)
+            {
+                Detect();
+            }
         }
 
         private void Detect()
         {
-            if (roster == null || roster.Count < 2) return;
-
-            for (int i = 0; i < roster.Count; i++)
+            if (roster == null || roster.Count < 2)
+            {
+                return;
+            }
+                
+                for (int i = 0; i < roster.Count; i++)
             {
                 SizeController a = roster.Balls[i];
                 if (!CanMerge(a)) continue;
@@ -108,8 +114,7 @@ namespace QiuQiu
                     SizeController b = roster.Balls[j];
                     if (!CanMerge(b)) continue;
 
-                    // both balls have solid colliders, so they touch instead of overlapping;
-                    // the cooldown, not the contact test, is the real gate
+                    //touch & time >true 
                     float contactDistance = a.Radius + b.Radius + tuning.mergeContactTolerance;
                     if (Vector2.Distance(a.transform.position, b.transform.position) > contactDistance) continue;
 
@@ -121,20 +126,37 @@ namespace QiuQiu
 
         private void Begin(SizeController a, SizeController b)
         {
-            // the main ball always keeps itself: the player controls it, a sub ball may not eat it
+            // the main ball always keeps itself, a sub ball may not eat it
+            
             SizeController keeper;
             SizeController small;
 
-            if (a == roster.Main) { keeper = a; small = b; }
-            else if (b == roster.Main) { keeper = b; small = a; }
-            else if (a.Mass >= b.Mass) { keeper = a; small = b; }
-            else { keeper = b; small = a; }
+            //find main ball 
+            if (a == roster.Main)
+            {
+                { keeper = a; small = b; }
+            }
+            else if (b == roster.Main)
+            {
+                { keeper = b; small = a; }
+            }
+            //see who big
+            else if (a.Mass >= b.Mass)
+            {
+                { keeper = a; small = b; }
+            }
+            else
+            {
+                { keeper = b; small = a; }
+            }
 
-            // the small ball stops following the formation and starts the pull
+            // the small ball stops following  and starts the pull
             PlayerSubBall sub = small.GetComponent<PlayerSubBall>();
-            if (sub != null) sub.enabled = false;
-
-            // colliders off while pulled: otherwise it shoves the keeper around the whole way
+            if (sub != null)
+            {
+                sub.enabled = false;
+            }   
+            // colliders off while pulled
             Collider2D[] colliders = small.GetComponentsInChildren<Collider2D>();
             for (int i = 0; i < colliders.Length; i++) colliders[i].enabled = false;
 
@@ -148,7 +170,6 @@ namespace QiuQiu
                 elapsed = 0f
             });
 
-            Debug.Log($"[合体] 开始吸附：{small.name}({small.Mass:F0}) → {keeper.name}({keeper.Mass:F0})");
         }
 
         private void UpdateJobs(float deltaTime)
@@ -157,7 +178,7 @@ namespace QiuQiu
             {
                 Job job = jobs[i];
 
-                // either side may be eaten mid-pull: give up instead of pushing a dead ball around
+                // either side may be eaten mid-pull: give up instead of pushing
                 if (job.small == null || job.keeper == null || job.small.IsDead || job.keeper.IsDead)
                 {
                     Abort(job);
@@ -170,28 +191,25 @@ namespace QiuQiu
                 float eased = Mathf.Pow(t, tuning.mergePullEase);   // slow first, then snap in
 
                 Rigidbody2D body = job.small.GetComponent<Rigidbody2D>();
-                if (body != null) body.MovePosition(Vector2.Lerp(job.startPosition, job.keeper.transform.position, eased));
+                if (body != null)
+                {
+                    body.MovePosition(Vector2.Lerp(job.startPosition, job.keeper.transform.position, eased));
+                }
 
-                // shrink while pulled, so the ball does not vanish in one frame at the end
                 job.small.transform.localScale = Vector3.Lerp(job.startScale, Vector3.zero, eased);
 
                 if (t < 1f) continue;
 
-                // done: remove the job first, then hand over mass and kill the small ball,
-                // because Die fires Eaten and that callback cleans up the bookkeeping
                 jobs.RemoveAt(i);
 
                 float gain = job.small.Mass;
                 float keeperBefore = job.keeper.Mass;
                 job.keeper.AddMass(gain);
                 job.small.Die(job.keeper);
-
-                Debug.Log($"[合体] 完成：{keeperBefore:F0} + {gain:F0} → {job.keeper.Mass:F0}，球数 {roster.Count}");
             }
         }
 
-        // a pull that never finishes must not leave the small ball without its colliders and drive:
-        // give the body back, otherwise it can neither be eaten nor follow the main ball
+        //for  Mergeing but have AI eat the main ball to remove the action
         private void Abort(Job job)
         {
             SizeController small = job.small;

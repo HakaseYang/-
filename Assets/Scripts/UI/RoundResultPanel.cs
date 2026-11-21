@@ -90,7 +90,6 @@ namespace QiuQiu
                 AudioManager.Instance.PlayRoundEnd();
             }
 
-
         }
 
         public void Hide()
@@ -108,7 +107,7 @@ namespace QiuQiu
             if (AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlayUIClick();
-                AudioManager.Instance.PlayBGM();
+                AudioManager.Instance.PlayBGM();    //for next play have BGM
             }
 
             SceneFlow.Reload();

@@ -3,10 +3,10 @@ using UnityEngine;
 namespace QiuQiu
 {
     // split and spit rules: cooldowns, mass math, where the new ball appears.
-    // no Unity component - PlayerController owns the wiring (sub ball, merge bookkeeping, audio).
     public class PlayerActions
     {
         private PlayerRoster roster;
+        //Generic Delegate (get black SizeController)
         private System.Func<string, Vector3, float, Sprite, Color, SizeController> spawnBall;
         private PlayerController.PlayerTuning tuning;
         private string ballPrefix = "Player";
@@ -14,8 +14,7 @@ namespace QiuQiu
         private float nextSplitTime;
         private float nextSpitTime;
 
-        public void Configure(PlayerRoster roster,
-            System.Func<string, Vector3, float, Sprite, Color, SizeController> spawnBall,
+        public void Configure(PlayerRoster roster,System.Func<string, Vector3, float, Sprite, Color, SizeController> spawnBall,
             PlayerController.PlayerTuning tuning, string ballPrefix)
         {
             this.roster = roster;
@@ -24,24 +23,30 @@ namespace QiuQiu
             this.ballPrefix = ballPrefix;
         }
 
-        // sub balls sit on a ring around the main ball, slots spread over the whole circle
+        // sub balls sit on a ring around the main ball
         public float SlotAngleFor(int index)
         {
-            int slots = Mathf.Max(1, tuning.maxBallCount - 1);
+            int slots = tuning.maxBallCount - 1;
             return 90f + 360f / slots * (index - 1);
         }
 
-        // true when a ball was actually split off; source and newBall are filled in for the caller
         public bool TrySplit(Vector2 facing, out SizeController source, out SizeController newBall, out float newMass)
         {
             source = null;
             newBall = null;
             newMass = 0f;
 
-            if (Time.time < nextSplitTime) return false;
+            if (Time.time < nextSplitTime)
+            {
+                return false;
+            }
 
             source = roster.Largest();
-            if (source == null) return false;
+
+            if (source == null)
+            {
+                return false;
+            }
 
             if (source.Mass <= tuning.splitMinMass)
             {
@@ -56,6 +61,7 @@ namespace QiuQiu
             }
 
             SpriteRenderer shell = source.GetComponent<SpriteRenderer>();
+
             if (shell == null)
             {
                 Debug.LogError("[split] source ball has no SpriteRenderer");
@@ -63,12 +69,13 @@ namespace QiuQiu
             }
 
             Vector2 dir = Direction(facing);
-            newMass = source.Mass * tuning.splitMassRatio;
+            newMass = source.Mass * tuning.splitMassRatio;  //*0.5 half
 
             // halve first, so the new ball spawns outside the smaller body
             source.SetMass(source.Mass - newMass);
 
             Vector3 position = source.transform.position + (Vector3)(dir * (source.Radius * 2f + tuning.splitSpawnGap));
+            //($"{ballPrefix}_Ball{roster.Count}" ball name
             newBall = spawnBall($"{ballPrefix}_Ball{roster.Count}", position, newMass, shell.sprite, shell.color);
 
             if (newBall == null)
@@ -78,13 +85,16 @@ namespace QiuQiu
             }
 
             Rigidbody2D body = newBall.GetComponent<Rigidbody2D>();
-            if (body != null) body.linearVelocity = dir * tuning.splitLaunchSpeed;
+            if (body != null)
+            {
+                body.linearVelocity = dir * tuning.splitLaunchSpeed;
+            }
 
             nextSplitTime = Time.time + tuning.splitCooldown;
             return true;
         }
 
-        // true when food was actually spat out; source is the ball that paid for it
+        // true when food  spat out; source is the ball that paid for it
         public bool TrySpit(Vector2 facing, out SizeController source)
         {
             source = null;
@@ -92,8 +102,12 @@ namespace QiuQiu
             if (Time.time < nextSpitTime) return false;
 
             source = roster.Largest();
-            if (source == null) return false;
 
+            if (source == null)
+            {
+                return false;
+            }
+                //check Mass enought? 
             if (!source.TryConsumeMass(tuning.spitMassCost, tuning.minMassAfterSpit))
             {
                 Debug.Log($"[spit] mass {source.Mass:F0} is not above {tuning.spitMassCost + tuning.minMassAfterSpit:F0}");
@@ -119,6 +133,7 @@ namespace QiuQiu
             return facing.sqrMagnitude > 0.0001f ? facing : Vector2.right;
         }
 
+        //make spit food more ealy to check and see
         private static Color Lighten(Color color)
         {
             return new Color(

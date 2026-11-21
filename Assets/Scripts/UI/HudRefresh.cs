@@ -2,8 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // the small HUD widgets all need the same two things: a lazy GameManager
-    // reference and a throttled refresh clock
     internal static class HudRefresh
     {
         private const float MinInterval = 0.02f;
@@ -18,8 +16,6 @@ namespace QiuQiu
             GameManager live = GameManager.Instance;
             return live != null ? live : Object.FindFirstObjectByType<GameManager>();
         }
-
-        // true when the widget may redraw now; advances the clock when it says yes
         public static bool Due(ref float nextTime, float interval)
         {
             if (Time.unscaledTime < nextTime)

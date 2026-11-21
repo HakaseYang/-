@@ -4,7 +4,6 @@ using UnityEngine.UI;
 
 namespace QiuQiu
 {
-    [DisallowMultipleComponent]
     public class HUDController : MonoBehaviour
     {
         [SerializeField] private PlayerController player;
@@ -20,14 +19,14 @@ namespace QiuQiu
         private float nextRefreshTime;
         private int lastRank = -1;
         private int lastTotal = -1;
-        private int lastMassInt = -1;
+        private int lastMassInt = -1;   //to sure first fram have
 
         public int CurrentRank { get; private set; } = 1;
         public int TotalParticipants { get; private set; } = 1;
 
         private void Awake()
         {
-            interval = Mathf.Max(0.05f, refreshInterval);
+            interval =  refreshInterval;
 
             if (player == null)
             {
@@ -37,14 +36,13 @@ namespace QiuQiu
             {
                 return;
             }
-
-            // the two labels live under this object; adopt them by name when unset
+            //if not have > find
             foreach (Text text in GetComponentsInChildren<Text>(true))
             {
                 if (massText == null && IsMassLabel(text.name))
                 {
                     massText = text;
-                }
+                }                            // 0 to final find have Rank text to make it be "rankText"  >not find give back -1,have find 0
                 else if (rankText == null && text.name.IndexOf("Rank", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     rankText = text;
@@ -54,13 +52,13 @@ namespace QiuQiu
 
         private static bool IsMassLabel(string objectName)
         {
-            return objectName.IndexOf("Mass", StringComparison.OrdinalIgnoreCase) >= 0
-                || objectName.IndexOf("Weight", StringComparison.OrdinalIgnoreCase) >= 0;
+            return objectName.IndexOf("Mass", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private void Start()
         {
             Refresh(true);
+
             nextRefreshTime = Time.unscaledTime + interval;
         }
 
@@ -84,7 +82,6 @@ namespace QiuQiu
                 return;
             }
 
-            // after a hand-over the old controller is gone, fall back to Active
             if (player == null || !player.isActiveAndEnabled)
             {
                 player = PlayerController.Active;
@@ -97,6 +94,7 @@ namespace QiuQiu
 
         private void UpdateRank(GameManager gm, float mass)
         {
+            //11
             TotalParticipants = gm != null ? gm.ParticipantCount : 1 + ScoreBoard.AliveCount(Team.Enemy);
             ScoreBoard.Rank(mass, TotalParticipants, out int rank);
             CurrentRank = rank;
@@ -104,7 +102,7 @@ namespace QiuQiu
 
         private void UpdateLabels(bool force, float mass)
         {
-            int massInt = Mathf.RoundToInt(mass);
+            int massInt = Mathf.RoundToInt(mass);//4 out(0.4>0)  5 in(0.5>1)
             if (force || massInt != lastMassInt)
             {
                 lastMassInt = massInt;

@@ -46,7 +46,7 @@ namespace QiuQiu
             Edible edible = FoodPool.Take();
             GameObject go = edible.gameObject;
 
-            go.transform.SetParent(parent, true);   // one parent change per spawn, not two
+            go.transform.SetParent(parent, true);   
             go.transform.position = position;
             go.transform.localScale = Vector3.one * FoodDiameter(mass);
 
@@ -60,7 +60,6 @@ namespace QiuQiu
             return go;
         }
 
-        // pool hook: a bare inactive food shell; FoodPool recycles these instead of destroying
         public static GameObject CreateFoodShell()
         {
             GameObject go = NewVisual("Food", Vector3.zero, null, Color.white, FoodOrder);

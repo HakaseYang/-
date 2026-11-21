@@ -1,123 +1,128 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// 局内 HUD：左上角显示当前质量与实时名次。
-    ///
-    /// 刷新策略：
-    ///   每 0.2 秒（可调）刷新一次，而不是每帧。原因：
-    ///     - 文字内容变一次就会触发 uGUI 的 mesh 重建（Canvas 重新合批），每帧改是纯浪费；
-    ///     - 质量/名次这种数值，5Hz 已经足够跟手，玩家感知不到差别。
-    ///   计时用 unscaledTime：结算时 timeScale = 0，HUD 仍需要能正常刷最后一下。
-    ///
-    /// 名次算法与结算面板保持一致（GameManager.ComputeRank）：
-    ///   名次 = 1 + 场上“质量比我大的存活对手数”；总数 = 存活对手数 + 1（玩家）。
-    ///   统计走 SizeController.Registry 静态表，不做全场景 FindObjectsByType。
-    /// </summary>
     [DisallowMultipleComponent]
     public class HUDController : MonoBehaviour
     {
-        [Header("引用")]
-        [Tooltip("玩家控制器。留空自动找。")]
         [SerializeField] private PlayerController player;
-
-        [Tooltip("显示“Mass: 123”。留空则自动找子物体里名字含 Mass 的 Text。")]
         [SerializeField] private Text massText;
-
-        [Tooltip("显示“Rank: 3 / 12”。留空则自动找子物体里名字含 Rank 的 Text。")]
         [SerializeField] private Text rankText;
 
-        [Header("刷新")]
-        [Tooltip("刷新间隔（秒）。0.2 = 每秒 5 次，够跟手又不浪费。")]
         [SerializeField] private float refreshInterval = 0.2f;
 
-        [Header("格式")]
         [SerializeField] private string massFormat = "Mass: {0:F0}";
         [SerializeField] private string rankFormat = "Rank: {0} / {1}";
 
+        private float interval;
         private float nextRefreshTime;
         private int lastRank = -1;
         private int lastTotal = -1;
         private int lastMassInt = -1;
 
-        /// <summary>当前名次（1 = 第一）。外部（例如结算）可读。</summary>
         public int CurrentRank { get; private set; } = 1;
         public int TotalParticipants { get; private set; } = 1;
 
         private void Awake()
         {
-            if (player == null) player = FindFirstObjectByType<PlayerController>();
+            interval = Mathf.Max(0.05f, refreshInterval);
 
-            if (massText == null || rankText == null)
+            if (player == null)
             {
-                // 允许把两个 Text 放在同一个 HUD 物体下的子物体里，按名字自动认领
-                foreach (var text in GetComponentsInChildren<Text>(true))
+                player = FindFirstObjectByType<PlayerController>();
+            }
+            if (massText != null && rankText != null)
+            {
+                return;
+            }
+
+            // the two labels live under this object; adopt them by name when unset
+            foreach (Text text in GetComponentsInChildren<Text>(true))
+            {
+                if (massText == null && IsMassLabel(text.name))
                 {
-                    if (massText == null && text.name.IndexOf("Mass", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                        massText = text;
-                    else if (rankText == null && text.name.IndexOf("Rank", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                        rankText = text;
+                    massText = text;
+                }
+                else if (rankText == null && text.name.IndexOf("Rank", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    rankText = text;
                 }
             }
+        }
+
+        private static bool IsMassLabel(string objectName)
+        {
+            return objectName.IndexOf("Mass", StringComparison.OrdinalIgnoreCase) >= 0
+                || objectName.IndexOf("Weight", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private void Start()
         {
             Refresh(true);
-            nextRefreshTime = Time.unscaledTime + Mathf.Max(0.05f, refreshInterval);
+            nextRefreshTime = Time.unscaledTime + interval;
         }
 
         private void Update()
         {
-            if (Time.unscaledTime < nextRefreshTime) return;
-            nextRefreshTime = Time.unscaledTime + Mathf.Max(0.05f, refreshInterval);
+            if (Time.unscaledTime < nextRefreshTime)
+            {
+                return;
+            }
+            nextRefreshTime = Time.unscaledTime + interval;
             Refresh(false);
         }
 
-        /// <summary>刷新一次显示。force = true 时忽略“内容没变就不改”的优化。</summary>
         private void Refresh(bool force)
         {
-            // 已结算：停更，保留死亡前最后的读数（否则会变成 Mass: 0 / Rank: 11，看着像 bug）
-            if (!force && GameManager.Instance != null && !GameManager.Instance.IsRunning) return;
+            GameManager gm = GameManager.Instance;
 
-            float mass = 0f;
-
-            // 主球阵亡交接后旧控制器会被销毁，兜底取当前的 Active
-            if (player == null || !player.isActiveAndEnabled) player = PlayerController.Active;
-
-            if (player != null)
+            // round over: keep the last numbers instead of showing zeros
+            if (!force && gm != null && !gm.IsRunning)
             {
-                mass = player.TotalMass;
-                ComputeRank(mass);
+                return;
             }
 
-            int massInt = Mathf.RoundToInt(mass);
+            // after a hand-over the old controller is gone, fall back to Active
+            if (player == null || !player.isActiveAndEnabled)
+            {
+                player = PlayerController.Active;
+            }
 
+            float mass = player != null ? player.TotalMass : 0f;
+            UpdateRank(gm, mass);
+            UpdateLabels(force, mass);
+        }
+
+        private void UpdateRank(GameManager gm, float mass)
+        {
+            TotalParticipants = gm != null ? gm.ParticipantCount : 1 + ScoreBoard.AliveCount(Team.Enemy);
+            ScoreBoard.Rank(mass, TotalParticipants, out int rank);
+            CurrentRank = rank;
+        }
+
+        private void UpdateLabels(bool force, float mass)
+        {
+            int massInt = Mathf.RoundToInt(mass);
             if (force || massInt != lastMassInt)
             {
                 lastMassInt = massInt;
-                if (massText != null) massText.text = string.Format(massFormat, mass);
+                if (massText != null)
+                {
+                    massText.text = string.Format(massFormat, mass);
+                }
             }
 
             if (force || CurrentRank != lastRank || TotalParticipants != lastTotal)
             {
                 lastRank = CurrentRank;
                 lastTotal = TotalParticipants;
-                if (rankText != null) rankText.text = string.Format(rankFormat, CurrentRank, TotalParticipants);
+                if (rankText != null)
+                {
+                    rankText.text = string.Format(rankFormat, CurrentRank, TotalParticipants);
+                }
             }
-        }
-
-        /// <summary>名次 = 1 + 质量比我大的存活对手数；总数固定为本局参赛人数（玩家 + AI 位）。</summary>
-        private void ComputeRank(float myMass)
-        {
-            GameManager gm = GameManager.Instance;
-
-            TotalParticipants = gm != null ? gm.ParticipantCount : 1 + ScoreBoard.AliveCount(Team.Enemy);
-            ScoreBoard.Rank(myMass, TotalParticipants, out int rank);
-
-            CurrentRank = rank;
         }
     }
 }

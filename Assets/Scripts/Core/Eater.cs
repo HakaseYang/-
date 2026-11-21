@@ -28,7 +28,13 @@ namespace QiuQiu
                 return;
             }
 
-            if (self.TryEat(target))
+            if (!self.TryEat(target))
+            {
+                return;
+            }
+
+            // only the player hears its own bite, ten AI eating must stay silent
+            if (self.Team == Team.Player && AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlayEatEnemy();
             }

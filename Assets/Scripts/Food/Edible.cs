@@ -77,7 +77,8 @@ namespace QiuQiu
             consumed = true;
             eater.AddMassFromEat(mass);
 
-            if (AudioManager.Instance != null)
+            // only the player's own eating is audible
+            if (eater.Team == Team.Player && AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlayEatFood();
             }

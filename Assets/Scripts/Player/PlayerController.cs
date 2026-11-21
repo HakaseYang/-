@@ -191,6 +191,8 @@ namespace QiuQiu
             SyncTools();
             ResolveActions();
         }
+
+        //give Inspector Parameters to PlayerActions??PlayerMerge
         private void SyncTools()
         {
             PlayerTuning snapshot = CaptureTuning();
@@ -200,19 +202,28 @@ namespace QiuQiu
 
         private void OnDestroy()
         {
-            if (Active == this) Active = null;
+            if (Active == this)
+            {
+                Active = null;
+            }
 
             for (int i = 0; i < roster.Count; i++)
             {
                 SizeController ball = roster.Balls[i];
-                if (ball != null) ball.Eaten -= OnBallEaten;
+                if (ball != null)
+                {
+                    ball.Eaten -= OnBallEaten;
+                }
             }
             roster.Clear();
         }
 
         private void Start()
         {
-            if (autoAdoptPlayerBalls) AdoptOrphanPlayerBalls();
+            if (autoAdoptPlayerBalls)
+            {
+                AdoptOrphanPlayerBalls();
+            }
         }
 
         private void ResolveActions()
@@ -261,22 +272,77 @@ namespace QiuQiu
             // 1. drop balls that died without firing the event
             roster.PruneDead(UnhookBall);
 
-            // 2. empty list: adopt any orphan player balls
-            if (roster.Count == 0 && autoAdoptPlayerBalls) AdoptOrphanPlayerBalls();
+            // 2. adopt any orphan player balls
+            if (roster.Count == 0 && autoAdoptPlayerBalls)
+            {
+                AdoptOrphanPlayerBalls();
+            }
 
-            // 3. main ball = largest alive ball, recomputed every frame
+            // 3. main ball = largest alive ball
             roster.RefreshMain();
 
-            // 4. input
-            Vector2 input = Vector2.ClampMagnitude(moveInput, 1f);
-            if (input.magnitude < inputDeadZone) input = Vector2.zero;
-            if (input.sqrMagnitude > 0.0001f) facing = input.normalized;
+            // 4. only the main ball takes input, every other ball follows
+            SyncSubDrive();
 
-            // 5. drive every ball that no sub-ball script owns
+            // 5. input
+            Vector2 input = Vector2.ClampMagnitude(moveInput, 1f);
+            if (input.magnitude < inputDeadZone)
+            {
+                input = Vector2.zero;
+            }
+            if (input.sqrMagnitude > 0.0001f)
+            {
+                facing = input.normalized;
+            }
+
+            // 6. drive every ball that no sub-ball script owns(main ball)
             MovePlayerBalls(input);
 
-            // 6. merge: advance running pulls first, then look for new pairs
+            // 7. merge:  running pulls first, then look for new 
             merge.Tick(Time.fixedDeltaTime);
+        }
+
+        // the main ball takes input, every other ball follows through its own script
+        private void SyncSubDrive()
+        {
+            SizeController main = roster.Main;
+            int slot = 0;
+
+            for (int i = 0; i < roster.Count; i++)
+            {
+                SizeController ball = roster.Balls[i];
+                if (ball == null || ball.IsDead)
+                {
+                    continue;
+                }
+
+                PlayerSubBall sub = ball.GetComponent<PlayerSubBall>();
+
+                if (ball == main)
+                {
+                    if (sub != null && !merge.IsMerging(ball))
+                    {
+                        sub.enabled = false;
+                    }
+                    continue;
+                }
+
+                if (merge.IsMerging(ball))
+                {
+                    continue;   // the merge pull owns this ball right now
+                }
+
+                slot++;
+                if (sub == null)
+                {
+                    sub = ball.gameObject.AddComponent<PlayerSubBall>();
+                    sub.Initialize(this, actions.SlotAngleFor(slot));
+                }
+                else if (!sub.enabled)
+                {
+                    sub.enabled = true;
+                }
+            }
         }
 
         private void MovePlayerBalls(Vector2 input)
@@ -284,12 +350,14 @@ namespace QiuQiu
             for (int i = 0; i < roster.Count; i++)
             {
                 SizeController ball = roster.Balls[i];
-                if (ball == null || ball.IsDead) continue;
+                if (ball == null || ball.IsDead)
+                {
+                    continue;
+                }
 
                 var sub = ball.GetComponent<PlayerSubBall>();
                 if (sub != null && sub.enabled)
                 {
-                    // sub ball: PlayerSubBall adds the input on top of formation correction
                     continue;
                 }
 
@@ -300,15 +368,20 @@ namespace QiuQiu
         private void MoveBall(SizeController ball, Vector2 input)
         {
             var rb = ball.GetComponent<Rigidbody2D>();
-            if (rb == null) return;
-
-            // no input: zero the velocity outright, that is what kills the slow drift
-            if (input.sqrMagnitude <= 0.0001f)
+            if (rb == null)
+            {
+                return;
+            }
+                
+                // no input: zero the velocity outright
+                if (input.sqrMagnitude <= 0.0001f)
             {
                 rb.linearVelocity = Vector2.zero;
 
                 if (ArenaManager.Instance != null)
+                {
                     ArenaManager.Instance.Constrain(rb, ball.Radius);
+                }
 
                 return;
             }
@@ -321,19 +394,30 @@ namespace QiuQiu
                 : Vector2.MoveTowards(current, targetVelocity, acceleration * Time.fixedDeltaTime);
 
             if (next.sqrMagnitude > maxSpeedHardLimit * maxSpeedHardLimit)
+            {
                 next = Vector2.ClampMagnitude(next, maxSpeedHardLimit);
+            }
 
             rb.linearVelocity = next;
 
             if (ArenaManager.Instance != null)
+            {
                 ArenaManager.Instance.Constrain(rb, ball.Radius);
+            }
+                
         }
 
 
         public void RegisterBall(SizeController ball)
         {
-            if (ball == null || ball.IsDead) return;
-            if (roster.Contains(ball)) return;
+            if (ball == null || ball.IsDead)
+            {
+                return;
+            }
+            if (roster.Contains(ball))
+            {
+                return;
+            }
 
             roster.Add(ball);
             ball.Eaten += OnBallEaten;
@@ -343,7 +427,10 @@ namespace QiuQiu
 
         public void UnregisterBall(SizeController ball)
         {
-            if (ball == null) return;
+            if (ball == null)
+            {
+                return;
+            }
 
             ball.Eaten -= OnBallEaten;
             roster.Remove(ball);
@@ -363,17 +450,16 @@ namespace QiuQiu
             for (int i = 0; i < registry.Count; i++)
             {
                 SizeController ball = registry[i];
-                if (ball == null || ball.IsDead || ball.Team != Team.Player) continue;
-                if (roster.Contains(ball)) continue;
+                if (ball == null || ball.IsDead || ball.Team != Team.Player)
+                {
+                    continue;
+                }
+                if (roster.Contains(ball))
+                {
+                    continue;
+                }
 
                 RegisterBall(ball);
-
-                // every non-main ball needs the follow script, or it eats the input itself
-                if (roster.Count > 1 && ball.GetComponent<PlayerSubBall>() == null)
-                {
-                    var sub = ball.gameObject.AddComponent<PlayerSubBall>();
-                    sub.Initialize(this, actions.SlotAngleFor(roster.Count - 1));
-                }
             }
         }
 
@@ -381,14 +467,14 @@ namespace QiuQiu
         {
             victim.Eaten -= OnBallEaten;
 
-            // a merged ball also fires Eaten: do not report it as eaten by an enemy
+            // a merged ball also fires Eaten,so it is merge?
             bool mergedIn = merge.IsMerging(victim);
-            merge.Drop(victim);
+            merge.Drop(victim); //clear merging
 
             bool wasMain = roster.Main == victim;
             roster.Remove(victim);
 
-            if (mergedIn) return;
+            if (mergedIn) return;   // self merge 
 
             string killerName = killer != null ? killer.name : "unknown";
 
@@ -396,8 +482,6 @@ namespace QiuQiu
             {
                 Debug.Log($"[player] main ball eaten by {killerName}, {roster.Count} left");
 
-                // the main ball is just one entry: pick the next largest and keep going,
-                // the controller lives on PlayerRoot and does not die with the ball.
                 if (roster.Main != null)
                 {
                     Debug.Log($"[player] control moved to {roster.Main.name} ({roster.Main.Mass:F0}), {roster.Count} left");
@@ -415,7 +499,10 @@ namespace QiuQiu
         {
             Debug.Log($"[player] every ball is gone, game over (eaten by {(killer != null ? killer.name : "unknown")})");
 
-            if (GameManager.Instance != null) GameManager.Instance.NotifyPlayerDefeated(killer);
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.NotifyPlayerDefeated(killer);
+            }
         }
 
 
@@ -425,16 +512,23 @@ namespace QiuQiu
             SizeController newBall;
             float newMass;
 
-            if (!actions.TrySplit(facing, out source, out newBall, out newMass)) return false;
+            if (!actions.TrySplit(facing, out source, out newBall, out newMass))
+            {
+                return false;
+            }
 
-            PlayerSubBall sub = newBall.gameObject.AddComponent<PlayerSubBall>();
-            sub.Initialize(this, actions.SlotAngleFor(roster.Count - 1));
+            // SyncSubDrive gives the new ball its follow script on the next physics step
 
-            // a fresh split ball has to wait out the merge cooldown before it can join again
+            // a fresh split ball has to wait out the merge cooldown, and so does the
+            // mother: otherwise the half without an entry merges back on contact
             merge.MarkSplit(newBall);
+            merge.MarkSplit(source);
 
             Debug.Log($"[split] {source.Mass + newMass:F0} -> {source.Mass:F0} + {newMass:F0}, balls {roster.Count}/{maxBallCount}");
-            if (AudioManager.Instance != null) AudioManager.Instance.PlaySplit();
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySplit();
+            }
             return true;
         }
 
@@ -442,11 +536,16 @@ namespace QiuQiu
         {
             SizeController source;
 
-            if (!actions.TrySpit(facing, out source)) return false;
-
+            if (!actions.TrySpit(facing, out source))
+            {
+                return false;
+            }
             Debug.Log($"[spit] {source.Mass:F0} left, food mass {spitFoodMass:F0}");
-            if (AudioManager.Instance != null) AudioManager.Instance.PlaySpit();
-            return true;
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySpit();
+            }
+                return true;
         }
 
         public SizeController SpawnBall(string ballName, Vector3 position, float mass, Sprite sprite, Color color)
@@ -465,9 +564,13 @@ namespace QiuQiu
             return ball;
         }
 
+        //just for PlayerRoot have or work (normal not work)
         public static PlayerController EnsureExists()
         {
-            if (Active != null) return Active;
+            if (Active != null)
+            {
+                return Active;
+            }
 
             var found = FindFirstObjectByType<PlayerController>();
             if (found != null)
@@ -510,7 +613,10 @@ namespace QiuQiu
             get
             {
                 Vector2 input = Vector2.ClampMagnitude(moveInput, 1f);
-                if (input.magnitude < inputDeadZone) return Vector2.zero;
+                if (input.magnitude < inputDeadZone)
+                {
+                    return Vector2.zero;
+                }
                 return input * moveSpeed;
             }
         }

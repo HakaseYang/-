@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace QiuQiu
@@ -44,7 +43,7 @@ namespace QiuQiu
 
         private void Update()
         {
-            // the pause key is read straight from the device, so the shared input asset stays gameplay only
+            //for test
             if (Keyboard.current == null || !Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 return;
@@ -180,15 +179,13 @@ namespace QiuQiu
         public void Restart()
         {
             Click();
-            Leave();
-            SceneManager.LoadScene(GameSettings.GameplaySceneName);
+            SceneFlow.LoadGameplay();
         }
 
         public void BackToMenu()
         {
             Click();
-            Leave();
-            SceneManager.LoadScene(GameSettings.MainMenuSceneName);
+            SceneFlow.LoadMainMenu();
         }
 
         private void Click()

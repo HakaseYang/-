@@ -4,36 +4,11 @@ using UnityEngine.InputSystem;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// 玩家控制器（常驻管理器，不再挂载在球体上）。
-    ///
-    /// 为什么要把控制器从球上挪到独立物体（PlayerRoot）？
-    ///   旧实现把 PlayerController 挂在“主球”这个 GameObject 上，主球被 AI 吃掉时
-    ///   GameObject 连同组件一起被销毁 —— 虽然做了“把控制权移交给最大子球”的交接，
-    ///   但交接过程有两个致命副作用：
-    ///     1) 新控制器 AddComponent 时立刻跑 Awake/OnEnable，把共享的 InputActionAsset 的
-    ///        Action 打开了；同帧稍后旧组件被销毁，它的 OnDisable 又把**同一份** Action 关掉，
-    ///        于是新控制器读到的永远是 (0,0) —— 玩家彻底失去控制，子球原地不动。
-    ///     2) 每次死亡都要重建组件、复制参数、重绑子球，链路又长又脆。
-    ///   现在控制器挂在常驻的 PlayerRoot 上，**任何一颗球被吃掉都不会影响控制器本身**，
-    ///   控制目标每帧动态挑选，从根上消除这一类问题。
-    ///
-    /// 设计要点：
-    /// 1. 用 PlayerRoster 记录当前所有存活的玩家球；球被吃时自动移出列表，
-    ///    只要列表非空，键盘 / 摇杆就依然能操控剩下的球。
-    /// 2. 移动输入施加给列表中**每一颗**需要由控制器驱动的球（带 PlayerSubBall 的子球
-    ///    由 PlayerSubBall 自己读取同一份输入，见 InputVelocity）。
-    /// 3. 分裂 / 吐球永远从“当前质量最大的存活球”上扣质量（主球优先原则）。
-    /// 4. 摄像机 / HUD / GameManager 都读 PlayerController.Active + Balls，天然跟随所有存活球。
-    /// </summary>
-    [DisallowMultipleComponent]
     public class PlayerController : MonoBehaviour
     {
-        /// <summary>当前生效的玩家控制器（常驻，不会随着某颗球死亡而消失）。</summary>
         public static PlayerController Active { get; private set; }
 
         [Header("Input Asset")]
-        [Tooltip("Controls.inputactions，需与 Player 上的 PlayerInput 使用同一份资产")]
         [SerializeField] private InputActionAsset controls;
         [SerializeField] private string actionMapName = "Player";
         [SerializeField] private string moveActionName = "Move";
@@ -41,60 +16,35 @@ namespace QiuQiu
         [SerializeField] private string spitActionName = "Spit";
 
         [Header("Movement")]
-        [Tooltip("最大移动速度（单位/秒）")]
         [SerializeField] private float moveSpeed = 5f;
-        [Tooltip("硬性速度上限，防止外力/叠加导致超速")]
         [SerializeField] private float maxSpeedHardLimit = 12f;
-        [Tooltip("加速度，0 表示瞬时启停；数值越小启动/刹车越平滑")]
         [SerializeField] private float acceleration = 60f;
-        [Tooltip("摇杆死区，小于该值的输入视为 0，避免手柄漂移")]
-        [Range(0f, 0.9f)]
         [SerializeField] private float inputDeadZone = 0.2f;
 
-        [Header("分裂 Split")]
-        [Tooltip("质量必须【大于】该值才能分裂（用户需求：> 30）。")]
+        [Header("Split")]
         [SerializeField] private float splitMinMass = 30f;
-        [Tooltip("分裂成功后两半各占的比例（0.5 = 均分）。")]
-        [Range(0.2f, 0.8f)]
         [SerializeField] private float splitMassRatio = 0.5f;
-        [Tooltip("玩家所有球的数量上限（含主球）。")]
         [SerializeField] private int maxBallCount = 8;
-        [Tooltip("分裂冷却（秒）。")]
         [SerializeField] private float splitCooldown = 0.5f;
-        [Tooltip("分裂出去的新球初速度（瞬间冲量，单位/秒）。")]
         [SerializeField] private float splitLaunchSpeed = 14f;
-        [Tooltip("新球生成时与母球的额外间隙，防止生成就重叠。")]
         [SerializeField] private float splitSpawnGap = 0.05f;
 
-        [Header("吐球 Spit")]
-        [Tooltip("每次吐球消耗的质量（用户需求：扣除约 10 点）。")]
+        [Header("Spit")]
         [SerializeField] private float spitMassCost = 10f;
-        [Tooltip("吐出去的那个球（食物）携带的质量，通常小于消耗量，差额就是“损耗”。")]
         [SerializeField] private float spitFoodMass = 5f;
-        [Tooltip("吐球后自己至少要保留的质量，低于它就吐不出来。")]
         [SerializeField] private float minMassAfterSpit = 5f;
-        [Tooltip("吐球冷却（秒）。")]
         [SerializeField] private float spitCooldown = 0.25f;
-        [Tooltip("吐出去的球的初速度。")]
         [SerializeField] private float spitLaunchSpeed = 16f;
-        [Tooltip("吐出去的球生成位置离球心的额外距离。")]
         [SerializeField] private float spitSpawnGap = 0.15f;
-        [Tooltip("吐出去的球多久之后才能被别人（包括自己）吃掉，防止吐完立刻吸回来。")]
         [SerializeField] private float spitArmDelay = 0.12f;
 
-        [Header("合体 Merge")]
-        [Tooltip("分裂后多久才允许重新合体（秒）。用户需求：15 秒。")]
+        [Header("Merge")]
         [SerializeField] private float mergeCooldown = 15f;
-        [Tooltip("两个球“贴在一起”的判定余量（世界单位）：中心距 <= 半径和 + 该值 就算碰撞，可以合体。")]
         [SerializeField] private float mergeContactTolerance = 0.15f;
-        [Tooltip("合体时的吸附过渡时长（秒）：小球会被“吸”进大球中心，避免瞬间消失。")]
         [SerializeField] private float mergePullDuration = 0.18f;
-        [Tooltip("合体吸附的缓动曲线强度：1 = 线性，2 = 先慢后快，越大越快贴上去。")]
-        [Range(0.5f, 4f)]
         [SerializeField] private float mergePullEase = 2f;
 
-        [Header("接管")]
-        [Tooltip("启动时自动把场景里所有 team == 0 的球接管进玩家球列表（列表为空时也会自动重试）。")]
+        [Header("Adoption")]
         [SerializeField] private bool autoAdoptPlayerBalls = true;
 
         private readonly InputReader playerInput = new InputReader();
@@ -107,16 +57,12 @@ namespace QiuQiu
 
         private Vector2 moveInput;
 
-        // 分裂 / 吐球的朝向：最后一次非零输入方向（没有输入时沿用上一次，初始朝右）
+        // split/spit aim: last input, right by default
         private Vector2 facing = Vector2.right;
 
         // merge rules (cooldown, pull animation, mass hand-over) live in PlayerMerge
         private readonly PlayerMerge merge = new PlayerMerge();
 
-        /// <summary>
-        /// 一份“可拷贝”的调参快照：保留给 GameManager 在重开一局时还原手调数值。
-        /// （控制器现在常驻，正常的死亡复活已经不需要它了。）
-        /// </summary>
         [System.Serializable]
         public class PlayerTuning
         {
@@ -148,7 +94,6 @@ namespace QiuQiu
             public float mergePullEase;
         }
 
-        /// <summary>把当前 Inspector 上的调参抓成快照。</summary>
         public PlayerTuning CaptureTuning()
         {
             return new PlayerTuning
@@ -182,13 +127,18 @@ namespace QiuQiu
             };
         }
 
-        /// <summary>把快照写回本控制器（Awake 阶段调用，早于 ResolveActions）。</summary>
         public void ApplyTuning(PlayerTuning tuning)
         {
-            if (tuning == null) return;
+            if (tuning == null)
+            {
+                return;
+            }
 
-            if (tuning.controls != null) controls = tuning.controls;
-
+            if (tuning.controls != null)
+            {
+                controls = tuning.controls;
+            }
+                
             moveSpeed = tuning.moveSpeed;
             maxSpeedHardLimit = tuning.maxSpeedHardLimit;
             acceleration = tuning.acceleration;
@@ -218,29 +168,29 @@ namespace QiuQiu
             ResolveActions();
         }
 
-        // ------------------------------ 生命周期 ------------------------------
 
-        // 复活时用来塑造新球的调参快照（GameManager 持有）
+        // tuning snapshot used when respawning (owned by GameManager)
         private static PlayerTuning s_PendingTuning;
 
         private void Awake()
         {
             Active = this;
 
-            if (s_PendingTuning != null)
-            {
-                ApplyTuning(s_PendingTuning);
-                s_PendingTuning = null;
-            }
-
             playerInput.SplitPressed += OnSplitPressed;
             playerInput.SpitPressed += OnSpitPressed;
+
+            // ApplyTuning already pushes the numbers and resolves the input
+            if (s_PendingTuning != null)
+            {
+                PlayerTuning tuning = s_PendingTuning;
+                s_PendingTuning = null;
+                ApplyTuning(tuning);
+                return;
+            }
 
             SyncTools();
             ResolveActions();
         }
-
-        // the split / spit / merge numbers live in the inspector fields above, so they are copied over here
         private void SyncTools()
         {
             PlayerTuning snapshot = CaptureTuning();
@@ -308,32 +258,27 @@ namespace QiuQiu
 
         private void FixedUpdate()
         {
-            // 1. 先清掉已经销毁/被吃掉的球（事件漏掉时的兜底）
+            // 1. drop balls that died without firing the event
             roster.PruneDead(UnhookBall);
 
-            // 2. 列表空了就尝试重新接管场景里 team == 0 的球
+            // 2. empty list: adopt any orphan player balls
             if (roster.Count == 0 && autoAdoptPlayerBalls) AdoptOrphanPlayerBalls();
 
-            // 3. 主球 = 当前质量最大的存活球（每次重算，不缓存死引用）
+            // 3. main ball = largest alive ball, recomputed every frame
             roster.RefreshMain();
 
-            // 4. 输入处理
+            // 4. input
             Vector2 input = Vector2.ClampMagnitude(moveInput, 1f);
             if (input.magnitude < inputDeadZone) input = Vector2.zero;
             if (input.sqrMagnitude > 0.0001f) facing = input.normalized;
 
-            // 5. 把所有非子球管理的球都按输入驱动（含主球；主球死了就驱动剩下的）
+            // 5. drive every ball that no sub-ball script owns
             MovePlayerBalls(input);
 
-            // 6. 合体：先推进已有的吸附动画，再检测新的可合体配对
+            // 6. merge: advance running pulls first, then look for new pairs
             merge.Tick(Time.fixedDeltaTime);
         }
 
-        /// <summary>
-        /// 按输入驱动玩家的球。
-        /// 带 PlayerSubBall 的子球由 PlayerSubBall 自己驱动（它会读取同一份 InputVelocity，
-        /// 所以“输入施加给所有存活球”依然成立）；其余球（主球 / 没有跟随组件的球）在这里直接驱动。
-        /// </summary>
         private void MovePlayerBalls(Vector2 input)
         {
             for (int i = 0; i < roster.Count; i++)
@@ -344,7 +289,7 @@ namespace QiuQiu
                 var sub = ball.GetComponent<PlayerSubBall>();
                 if (sub != null && sub.enabled)
                 {
-                    // 子球：输入由 PlayerSubBall 读取（它会把 InputVelocity 叠加到队形校正上）
+                    // sub ball: PlayerSubBall adds the input on top of formation correction
                     continue;
                 }
 
@@ -352,16 +297,12 @@ namespace QiuQiu
             }
         }
 
-        /// <summary>把一颗球按目标方向推动（三重限速 + 软边界）。</summary>
         private void MoveBall(SizeController ball, Vector2 input)
         {
             var rb = ball.GetComponent<Rigidbody2D>();
             if (rb == null) return;
 
-            // 没有输入时直接硬清零：这是“球自己慢慢漂”的根治办法。
-            // 之前用 MoveTowards 逼近 0，虽然理论上会收敛，但只要有任何系统（子球弹簧、
-            // 物理接触、边界推回）每帧写入一个极小的非 0 速度，就会形成永久漂移；
-            // 这里直接清零，不给残余速度留活路。
+            // no input: zero the velocity outright, that is what kills the slow drift
             if (input.sqrMagnitude <= 0.0001f)
             {
                 rb.linearVelocity = Vector2.zero;
@@ -388,9 +329,7 @@ namespace QiuQiu
                 ArenaManager.Instance.Constrain(rb, ball.Radius);
         }
 
-        // ------------------------------ 球列表维护 ------------------------------
 
-        /// <summary>把一颗球纳入玩家控制（重复调用安全）。</summary>
         public void RegisterBall(SizeController ball)
         {
             if (ball == null || ball.IsDead) return;
@@ -402,7 +341,6 @@ namespace QiuQiu
             merge.Register(ball);
         }
 
-        /// <summary>把一颗球移出玩家控制（被吃掉 / 主动丢弃）。</summary>
         public void UnregisterBall(SizeController ball)
         {
             if (ball == null) return;
@@ -419,10 +357,6 @@ namespace QiuQiu
             merge.Drop(ball);
         }
 
-        /// <summary>
-        /// 启动时 / 球列表空时：把场景里属于玩家（team == 0）的球接管进来。
-        /// 这样即使场景是手工搭的、或者某帧事件漏了，也不会出现“有球但控制不了”。
-        /// </summary>
         private void AdoptOrphanPlayerBalls()
         {
             var registry = SizeController.Registry;
@@ -434,7 +368,7 @@ namespace QiuQiu
 
                 RegisterBall(ball);
 
-                // 非主球要保证有跟随组件（否则它会被当成“主球”直接吃输入，队形会乱）
+                // every non-main ball needs the follow script, or it eats the input itself
                 if (roster.Count > 1 && ball.GetComponent<PlayerSubBall>() == null)
                 {
                     var sub = ball.gameObject.AddComponent<PlayerSubBall>();
@@ -456,36 +390,34 @@ namespace QiuQiu
 
             if (mergedIn) return;
 
-            string killerName = killer != null ? killer.name : "未知";
+            string killerName = killer != null ? killer.name : "unknown";
 
             if (wasMain)
             {
-                Debug.Log($"[玩家] 主球被 {killerName} 吃掉，剩余球数 {roster.Count}");
+                Debug.Log($"[player] main ball eaten by {killerName}, {roster.Count} left");
 
-                // 主球只是列表里的一员：重新挑一个最大的继续控制，
-                // 控制器本身在 PlayerRoot 上，不会跟着球一起消失。
+                // the main ball is just one entry: pick the next largest and keep going,
+                // the controller lives on PlayerRoot and does not die with the ball.
                 if (roster.Main != null)
                 {
-                    Debug.Log($"[玩家] 控制权自动切换到 {roster.Main.name}（质量 {roster.Main.Mass:F0}），剩余球数 {roster.Count}");
+                    Debug.Log($"[player] control moved to {roster.Main.name} ({roster.Main.Mass:F0}), {roster.Count} left");
                 }
             }
             else
             {
-                Debug.Log($"[玩家] 子球被吃掉，剩余球数 {roster.Count}");
+                Debug.Log($"[player] sub ball eaten, {roster.Count} left");
             }
 
             if (roster.Count == 0) NotifyDefeat(killer);
         }
 
-        /// <summary>把最后的死讯交给 GameManager（没有 GameManager 时只打日志）。</summary>
         private void NotifyDefeat(SizeController killer)
         {
-            Debug.Log($"[玩家] 所有球都被吃掉了，游戏结束（死于 {(killer != null ? killer.name : "未知")}）");
+            Debug.Log($"[player] every ball is gone, game over (eaten by {(killer != null ? killer.name : "unknown")})");
 
             if (GameManager.Instance != null) GameManager.Instance.NotifyPlayerDefeated(killer);
         }
 
-        // ------------------------------ 分裂 / 吐球 ------------------------------
 
         public bool TrySplit()
         {
@@ -516,17 +448,12 @@ namespace QiuQiu
             if (AudioManager.Instance != null) AudioManager.Instance.PlaySpit();
             return true;
         }
-        // ------------------------------ 球的生成 ------------------------------
 
-        /// <summary>
-        /// 运行时生成一颗玩家球并登记到列表（复活 / 分裂共用）。
-        /// 控制器本身不需要迁移，所以这里只造球、不改控制器。
-        /// </summary>
         public SizeController SpawnBall(string ballName, Vector3 position, float mass, Sprite sprite, Color color)
         {
             if (sprite == null)
             {
-                Debug.LogError("[PlayerController] SpawnBall 缺少精灵，无法生成玩家球。");
+                Debug.LogError("[PlayerController] SpawnBall needs a sprite");
                 return null;
             }
 
@@ -538,21 +465,6 @@ namespace QiuQiu
             return ball;
         }
 
-        /// <summary>
-        /// 兼容旧用法的入口（GameManager 早期版本用过）：生成一颗玩家球并返回它。
-        /// </summary>
-        public static SizeController SpawnAt(Vector3 position, float mass, Sprite sprite, Color color,
-            PlayerTuning tuning, int sortingOrder = 10)
-        {
-            PlayerController controller = EnsureExists();
-            if (controller == null) return null;
-
-            if (tuning != null) controller.ApplyTuning(tuning);
-
-            return controller.SpawnBall("Player", position, mass, sprite, color);
-        }
-
-        /// <summary>拿到（必要时创建）常驻的玩家控制器。</summary>
         public static PlayerController EnsureExists()
         {
             if (Active != null) return Active;
@@ -570,7 +482,6 @@ namespace QiuQiu
             return created;
         }
 
-        // ------------------------------ 合体 ------------------------------
 
         public bool CanMerge(SizeController ball)
         {
@@ -582,25 +493,18 @@ namespace QiuQiu
             return merge.IsMerging(ball);
         }
 
-        // -------------------- 移动端 / UI 调用入口 --------------------
 
-        /// <summary>虚拟摇杆调用：传入 [-1,1] 范围内的方向。</summary>
-        public void SetVirtualMoveInput(Vector2 value)
+        public void TriggerSplit()
         {
-            playerInput.SetVirtualMoveInput(value);
+            TrySplit();
         }
 
-        /// <summary>分裂按钮调用（手机端 UI 或技能系统）。</summary>
-        public void TriggerSplit() => TrySplit();
+        public void TriggerSpit()
+        {
+            TrySpit();
+        }
 
-        /// <summary>吐球按钮调用（手机端 UI 或技能系统）。</summary>
-        public void TriggerSpit() => TrySpit();
 
-        // ------------------------------ 只读数据 ------------------------------
-
-        public float MoveSpeed => moveSpeed;
-
-        /// <summary>当前输入换算出的基础速度（子球会把它叠加到队形校正上）。</summary>
         public Vector2 InputVelocity
         {
             get
@@ -611,25 +515,12 @@ namespace QiuQiu
             }
         }
 
-        /// <summary>主球速度（兼容旧代码；没有主球时返回零）。</summary>
-        public Vector2 CurrentVelocity
-        {
-            get
-            {
-                var rb = roster.Main != null ? roster.Main.GetComponent<Rigidbody2D>() : null;
-                return rb != null ? rb.linearVelocity : Vector2.zero;
-            }
-        }
-
-        /// <summary>当前主球 = 质量最大的存活球。</summary>
         public SizeController MainBall { get { return roster.Main; } }
 
         public int BallCount { get { return roster.Count; } }
 
-        /// <summary>玩家当前所有存活的球（摄像机会用它算取景中心）。</summary>
         public IReadOnlyList<SizeController> Balls { get { return roster.Balls; } }
 
-        /// <summary>玩家所有球的质量总和（做 UI 分数、大小排行榜时用）。</summary>
         public float TotalMass { get { return roster.TotalMass; } }
     }
 }

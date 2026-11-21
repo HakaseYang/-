@@ -2,9 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    [DisallowMultipleComponent]
-    [RequireComponent(typeof(Rigidbody2D))]
-    [RequireComponent(typeof(SizeController))]
     public class PlayerSubBall : MonoBehaviour
     {
         [Header("Follow")]
@@ -34,7 +31,7 @@ namespace QiuQiu
         public void Initialize(PlayerController controller, float slotAngleDegrees)
         {
             leaderController = controller;
-            slotAngle = slotAngleDegrees * Mathf.Deg2Rad;
+            slotAngle = slotAngleDegrees * Mathf.Deg2Rad; //Degrees to Radians
         }
 
         private void Awake()
@@ -45,15 +42,16 @@ namespace QiuQiu
 
         private void FixedUpdate()
         {
-            if (self == null || self.IsDead) return;
-
-            // no controller means no player at all, only then stop
+            if (self == null || self.IsDead)
+            {
+                return;
+            }
+            // no controller means nobody drives this ball any more, so leave it alone
             if (leaderController == null)
             {
                 leaderController = PlayerController.Active;
                 if (leaderController == null)
                 {
-                    StopGradually();
                     return;
                 }
             }
@@ -81,8 +79,7 @@ namespace QiuQiu
             else
             {
                 Vector2 direct = Vector2.ClampMagnitude(inputVelocity, maxFollowSpeed);
-                rb.linearVelocity = Vector2.MoveTowards(
-                    rb.linearVelocity, direct, followAcceleration * Time.fixedDeltaTime);
+                rb.linearVelocity = Vector2.MoveTowards(rb.linearVelocity, direct, followAcceleration * Time.fixedDeltaTime);
             }
 
             Constrain();
@@ -103,7 +100,7 @@ namespace QiuQiu
             if (currentDistance > distance * 2f)
             {
                 float t = Mathf.InverseLerp(distance * 2f, distance * 6f, currentDistance);
-                strength *= Mathf.Lerp(1f, Mathf.Max(1f, farAwayBoost), t);
+                strength *= Mathf.Lerp(1f, farAwayBoost, t);
             }
 
             // once the cooldown ends the slot collapses onto the leader and the merge starts
@@ -111,13 +108,17 @@ namespace QiuQiu
             if (canMergeNow)
             {
                 target = leaderPosition;
-                strength = followStrength * Mathf.Max(1f, returnHomeStrengthMultiplier);
-                speedLimit = Mathf.Min(maxFollowSpeed, Mathf.Max(0.1f, returnHomeMaxSpeed));
+                strength = followStrength * returnHomeStrengthMultiplier;
+                speedLimit = Mathf.Min(maxFollowSpeed,returnHomeMaxSpeed);
             }
 
+            //player go where
             Vector2 inputTerm = Vector2.ClampMagnitude(inputVelocity, speedLimit);
+            //make ball form
             Vector2 spring = (target - rb.position) * strength;
+            //speed limit
             float correctionBudget = Mathf.Max(0f, speedLimit - inputTerm.magnitude);
+            //all neefd in Clamp
             Vector2 correction = Vector2.ClampMagnitude(spring, correctionBudget);
 
             Vector2 desired = inputTerm + correction;
@@ -128,12 +129,13 @@ namespace QiuQiu
             if (hasInput || canMergeNow)
             {
                 var leaderRb = leader.GetComponent<Rigidbody2D>();
-                if (leaderRb != null) desired += leaderRb.linearVelocity * 0.5f;
+                if (leaderRb != null)
+                {
+                    desired += leaderRb.linearVelocity * 0.5f;
+                }
             }
-
+            //limit spped again
             desired = Vector2.ClampMagnitude(desired, speedLimit);
-
-            // on the slot and idle: stop dead, the spring residue never decays on its own
             if (slotSettled && !hasInput)
             {
                 rb.linearVelocity = Vector2.zero;
@@ -147,20 +149,13 @@ namespace QiuQiu
             }
             else
             {
-                rb.linearVelocity = Vector2.MoveTowards(
-                    rb.linearVelocity, desired, followAcceleration * Time.fixedDeltaTime);
+                rb.linearVelocity = Vector2.MoveTowards(rb.linearVelocity, desired, followAcceleration * Time.fixedDeltaTime);
             }
 
             Constrain();
         }
 
-        private void StopGradually()
-        {
-            rb.linearVelocity = Vector2.MoveTowards(
-                rb.linearVelocity, Vector2.zero, followAcceleration * Time.fixedDeltaTime);
-        }
-
-        // the project has no wall colliders, the arena edge is a soft clamp
+        // no wall colliders, the arena edge is a soft clamp
         private void Constrain()
         {
             if (ArenaManager.Instance != null)

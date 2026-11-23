@@ -94,8 +94,8 @@ namespace QiuQiu
 
         private void UpdateRank(GameManager gm, float mass)
         {
-            //11
-            TotalParticipants = gm != null ? gm.ParticipantCount : 1 + ScoreBoard.AliveCount(Team.Enemy);
+            //11 participants is 1 player + 10 bots, counted per bot id, never per cell
+            TotalParticipants = gm != null ? gm.ParticipantCount : 1 + ScoreBoard.AliveBots(Team.Enemy);
             ScoreBoard.Rank(mass, TotalParticipants, out int rank);
             CurrentRank = rank;
         }

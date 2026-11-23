@@ -268,6 +268,7 @@ GameObject:
   - component: {fileID: 110510558}
   - component: {fileID: 110510557}
   - component: {fileID: 110510556}
+  - component: {fileID: 110510559}
   m_Layer: 0
   m_Name: BtnSpit
   m_TagString: Untagged
@@ -338,19 +339,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 110510557}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 430670990}
-        m_TargetAssemblyTypeName: QiuQiu.PlayerController, Assembly-CSharp
-        m_MethodName: TriggerSpit
-        m_Mode: 0
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!114 &110510557
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -389,6 +378,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 110510554}
   m_CullTransparentMesh: 1
+--- !u!114 &110510559
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 110510554}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3806e28651d93644b06742a01e195e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.MobileInputButton
+  isSpitButton: 1
 --- !u!1 &126896144
 GameObject:
   m_ObjectHideFlags: 0
@@ -689,11 +691,11 @@ GameObject:
   - component: {fileID: 327828740}
   - component: {fileID: 327828739}
   - component: {fileID: 327828738}
-  - component: {fileID: 327828737}
   - component: {fileID: 327828736}
   - component: {fileID: 327828735}
   - component: {fileID: 327828734}
   - component: {fileID: 327828733}
+  - component: {fileID: 327828741}
   m_Layer: 0
   m_Name: AI_08
   m_TagString: Enemy
@@ -713,11 +715,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 2.8555956
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 7.8563304
   scanInterval: 0.2
   scanBufferSize: 32
@@ -730,6 +732,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &327828734
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -742,6 +747,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &327828735
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -759,7 +765,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -794,42 +807,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &327828737
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 327828732}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -936,6 +913,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &327828741
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 327828732}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &343608169
 GameObject:
   m_ObjectHideFlags: 0
@@ -1026,11 +1019,11 @@ GameObject:
   - component: {fileID: 379972374}
   - component: {fileID: 379972373}
   - component: {fileID: 379972372}
-  - component: {fileID: 379972371}
   - component: {fileID: 379972370}
   - component: {fileID: 379972369}
   - component: {fileID: 379972368}
   - component: {fileID: 379972367}
+  - component: {fileID: 379972375}
   m_Layer: 0
   m_Name: AI_04
   m_TagString: Enemy
@@ -1050,11 +1043,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 3.6360803
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 7.2011003
   scanInterval: 0.2
   scanBufferSize: 32
@@ -1067,6 +1060,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &379972368
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1079,6 +1075,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &379972369
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1096,7 +1093,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -1131,42 +1135,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &379972371
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 379972366}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -1273,6 +1241,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &379972375
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 379972366}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &401043773
 GameObject:
   m_ObjectHideFlags: 0
@@ -1434,31 +1418,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15519c58ae9f63044a8975d22074c368, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.PlayerController
-  controls: {fileID: -944628639613478452, guid: fbebd52802526c645815af5821e0827f, type: 3}
-  actionMapName: Player
-  moveActionName: Move
-  splitActionName: Split
-  spitActionName: Spit
-  moveSpeed: 5
-  maxSpeedHardLimit: 12
-  acceleration: 60
+  moveSpeed: 4.2
+  maxSpeedHardLimit: 10.5
+  acceleration: 38
+  deceleration: 5
   inputDeadZone: 0.2
   splitMinMass: 30
   splitMassRatio: 0.5
-  maxBallCount: 8
+  maxBallCount: 16
   splitCooldown: 0.5
-  splitLaunchSpeed: 14
-  splitSpawnGap: 0.05
-  spitMassCost: 10
-  spitFoodMass: 5
-  minMassAfterSpit: 5
-  spitCooldown: 0.25
-  spitLaunchSpeed: 16
+  splitDistanceMultiplier: 1.55
+  splitImpulseFactor: 4.5
+  splitCoastDuration: 0.75
+  splitEjectDuration: 0.18
+  aimAtMouse: 0
+  markerGap: 0.35
+  centerAimSpeed: 2.5
+  subHomeStrength: 1.8
+  subHomeDamping: 3
+  subMaxDriftSpeed: 4
+  subFollowAcceleration: 22
+  spitMassCost: 8
+  spitFoodMass: 6
+  minMassAfterSpit: 10
+  spitCooldown: 0.26
+  spitRetryInterval: 0.25
+  spitLaunchSpeed: 12
   spitSpawnGap: 0.15
   spitArmDelay: 0.12
-  mergeCooldown: 15
+  spitOwnerGrace: 0.6
+  mergeCooldown: 4.5
+  mergeCooldownPerMass: 0.002
+  mergeCooldownMax: 8
+  pushApartSpeed: 4
   mergeContactTolerance: 0.15
-  mergePullDuration: 0.18
+  mergePullDuration: 1.4
   mergePullEase: 2
   autoAdoptPlayerBalls: 1
 --- !u!4 &430670991
@@ -1538,7 +1532,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
   m_FirstSelected: {fileID: 0}
-  m_sendNavigationEvents: 1
+  m_sendNavigationEvents: 0
   m_DragThreshold: 10
 --- !u!4 &441521623
 Transform:
@@ -2087,17 +2081,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.CameraFollow
   player: {fileID: 430670990}
   followOffset: {x: 0, y: 0, z: -10}
-  centerMode: 1
-  positionLerpSpeed: 8
-  maxPanDistance: 12
   holdPositionWhenNoBall: 1
-  padding: 1.5
-  radiusScale: 1.1
+  baseZoomBase: 7
+  baseZoomReferenceMass: 60
+  baseZoomExponent: 0.25
   minOrthographicSize: 5
   maxOrthographicSize: 0
-  zoomOutLerpSpeed: 10
-  zoomInLerpSpeed: 2.5
-  snapWhenBallWouldClip: 1
+  padding: 1.5
+  radiusScale: 1.1
+  splitZoomMultiplier: 1.4
+  splitZoomInTime: 0.2
+  splitBonusHold: 0.45
+  splitPredictTime: 0.3
+  showDebug: 0
+  splitZoomOutTime: 0.16
+  zoomOutTime: 0.28
+  zoomInTime: 0.45
+  positionSmoothTime: 0.22
 --- !u!1 &520838019
 GameObject:
   m_ObjectHideFlags: 0
@@ -2242,11 +2242,11 @@ GameObject:
   - component: {fileID: 546956202}
   - component: {fileID: 546956201}
   - component: {fileID: 546956200}
-  - component: {fileID: 546956199}
   - component: {fileID: 546956198}
   - component: {fileID: 546956197}
   - component: {fileID: 546956196}
   - component: {fileID: 546956195}
+  - component: {fileID: 546956203}
   m_Layer: 0
   m_Name: AI_03
   m_TagString: Enemy
@@ -2266,11 +2266,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 3.3329897
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 7.181265
   scanInterval: 0.2
   scanBufferSize: 32
@@ -2283,6 +2283,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &546956196
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2295,6 +2298,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &546956197
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2312,7 +2316,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -2347,42 +2358,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &546956199
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 546956194}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -2489,6 +2464,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &546956203
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 546956194}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &550561929
 GameObject:
   m_ObjectHideFlags: 0
@@ -2829,6 +2820,7 @@ GameObject:
   - component: {fileID: 632670671}
   - component: {fileID: 632670670}
   - component: {fileID: 632670669}
+  - component: {fileID: 632670673}
   m_Layer: 0
   m_Name: MobileUI
   m_TagString: Untagged
@@ -2927,6 +2919,26 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!114 &632670673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 632670668}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ce0c00049f8a274485830843557d3d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.LeaderboardPanel
+  rowCount: 8
+  panelSize: {x: 300, y: 268}
+  margin: {x: -16, y: -230}
+  refreshInterval: 0.25
+  panelColor: {r: 0.04, g: 0.05, b: 0.08, a: 0.55}
+  titleColor: {r: 1, g: 1, b: 1, a: 0.95}
+  rowColor: {r: 0.86, g: 0.89, b: 0.95, a: 0.95}
+  playerColor: {r: 1, g: 0.42, b: 0.42, a: 1}
 --- !u!1 &702132024
 GameObject:
   m_ObjectHideFlags: 0
@@ -3173,7 +3185,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 55, y: 55}
+  m_AnchoredPosition: {x: 55.00006, y: 55.00003}
   m_SizeDelta: {x: 180, y: 180}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &734228421
@@ -4082,11 +4094,11 @@ GameObject:
   - component: {fileID: 1192631560}
   - component: {fileID: 1192631559}
   - component: {fileID: 1192631558}
-  - component: {fileID: 1192631557}
   - component: {fileID: 1192631556}
   - component: {fileID: 1192631555}
   - component: {fileID: 1192631554}
   - component: {fileID: 1192631553}
+  - component: {fileID: 1192631561}
   m_Layer: 0
   m_Name: AI_06
   m_TagString: Enemy
@@ -4106,11 +4118,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 3.1976824
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 8.564994
   scanInterval: 0.2
   scanBufferSize: 32
@@ -4123,6 +4135,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &1192631554
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4135,6 +4150,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &1192631555
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4152,7 +4168,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -4187,42 +4210,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &1192631557
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1192631552}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -4325,6 +4312,82 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 4.731644, y: -16.152021, z: 0}
   m_LocalScale: {x: 3.2863355, y: 3.2863355, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1192631561
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1192631552}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
+--- !u!1 &1216733329
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1216733331}
+  - component: {fileID: 1216733330}
+  m_Layer: 0
+  m_Name: VirusSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1216733330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1216733329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f101b68b914e925469fbb4e28d51b8bf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.VirusSpawner
+  virusCount: 6
+  maxVirus: 7
+  respawnMinDelay: 2
+  respawnMaxDelay: 4
+  virusMass: 120
+  radiusScale: 0.237
+  virusColor: {r: 0.42, g: 0.85, b: 0.55, a: 1}
+  sortingOrder: 15
+  textureSize: 128
+  starPoints: 12
+  starInnerRatio: 0.74
+  borderMargin: 2
+  minDistanceFromBalls: 8
+  minDistanceBetweenViruses: 9
+  placementAttempts: 12
+  virusParent: {fileID: 0}
+--- !u!4 &1216733331
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1216733329}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -4761,10 +4824,10 @@ GameObject:
   - component: {fileID: 1313425015}
   - component: {fileID: 1313425014}
   - component: {fileID: 1313425013}
-  - component: {fileID: 1313425012}
   - component: {fileID: 1313425011}
   - component: {fileID: 1313425010}
   - component: {fileID: 1313425009}
+  - component: {fileID: 1313425016}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -4784,6 +4847,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &1313425010
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4801,7 +4865,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 0
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -4836,42 +4907,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &1313425012
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1313425008}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -4978,6 +5013,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1313425016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1313425008}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &1316922896
 GameObject:
   m_ObjectHideFlags: 0
@@ -5064,11 +5115,11 @@ GameObject:
   - component: {fileID: 1325699705}
   - component: {fileID: 1325699704}
   - component: {fileID: 1325699703}
-  - component: {fileID: 1325699702}
   - component: {fileID: 1325699701}
   - component: {fileID: 1325699700}
   - component: {fileID: 1325699699}
   - component: {fileID: 1325699698}
+  - component: {fileID: 1325699706}
   m_Layer: 0
   m_Name: AI_01
   m_TagString: Enemy
@@ -5088,11 +5139,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 2.9208598
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 8.176467
   scanInterval: 0.2
   scanBufferSize: 32
@@ -5105,6 +5156,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &1325699699
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5117,6 +5171,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &1325699700
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5134,7 +5189,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -5169,42 +5231,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &1325699702
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1325699697}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -5311,6 +5337,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1325699706
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1325699697}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &1427794738
 GameObject:
   m_ObjectHideFlags: 0
@@ -5433,11 +5475,11 @@ GameObject:
   - component: {fileID: 1452858103}
   - component: {fileID: 1452858102}
   - component: {fileID: 1452858101}
-  - component: {fileID: 1452858100}
   - component: {fileID: 1452858099}
   - component: {fileID: 1452858098}
   - component: {fileID: 1452858097}
   - component: {fileID: 1452858096}
+  - component: {fileID: 1452858104}
   m_Layer: 0
   m_Name: AI_09
   m_TagString: Enemy
@@ -5457,11 +5499,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 3.9734185
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 8.419526
   scanInterval: 0.2
   scanBufferSize: 32
@@ -5474,6 +5516,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &1452858097
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5486,6 +5531,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &1452858098
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5503,7 +5549,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -5538,42 +5591,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &1452858100
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1452858095}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -5680,6 +5697,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1452858104
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452858095}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &1459202542
 GameObject:
   m_ObjectHideFlags: 0
@@ -5770,11 +5803,11 @@ GameObject:
   - component: {fileID: 1469056180}
   - component: {fileID: 1469056179}
   - component: {fileID: 1469056178}
-  - component: {fileID: 1469056177}
   - component: {fileID: 1469056176}
   - component: {fileID: 1469056175}
   - component: {fileID: 1469056174}
   - component: {fileID: 1469056173}
+  - component: {fileID: 1469056181}
   m_Layer: 0
   m_Name: AI_02
   m_TagString: Enemy
@@ -5794,11 +5827,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 3.7033982
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 9.152243
   scanInterval: 0.2
   scanBufferSize: 32
@@ -5811,6 +5844,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &1469056174
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5823,6 +5859,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &1469056175
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5840,7 +5877,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -5875,42 +5919,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &1469056177
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1469056172}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -6017,6 +6025,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1469056181
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1469056172}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &1472854191
 GameObject:
   m_ObjectHideFlags: 0
@@ -6028,11 +6052,11 @@ GameObject:
   - component: {fileID: 1472854199}
   - component: {fileID: 1472854198}
   - component: {fileID: 1472854197}
-  - component: {fileID: 1472854196}
   - component: {fileID: 1472854195}
   - component: {fileID: 1472854194}
   - component: {fileID: 1472854193}
   - component: {fileID: 1472854192}
+  - component: {fileID: 1472854200}
   m_Layer: 0
   m_Name: AI_05
   m_TagString: Enemy
@@ -6052,11 +6076,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 3.9206636
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 8.573197
   scanInterval: 0.2
   scanBufferSize: 32
@@ -6069,6 +6093,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &1472854193
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6081,6 +6108,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &1472854194
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6098,7 +6126,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -6133,42 +6168,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &1472854196
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1472854191}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -6275,6 +6274,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1472854200
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1472854191}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &1498335849
 GameObject:
   m_ObjectHideFlags: 0
@@ -6799,6 +6814,26 @@ MonoBehaviour:
   - {r: 0.55, g: 0.9, b: 1, a: 1}
   freezeOnGameOver: 1
   muteAudioOnGameOver: 0
+  swallowCoverage: 0.97
+  splitDistanceMultiplier: 1.55
+  splitImpulseFactor: 4.5
+  splitCoastDuration: 0.75
+  splitEjectDuration: 0.18
+  mergePullDuration: 1.4
+  mergeSlidePortion: 0.45
+  mergeCooldown: 4.5
+  mergeCooldownPerMass: 0.002
+  mergeCooldownMax: 8
+  spitCooldown: 0.26
+  spitMassCost: 8
+  spitFoodMass: 6
+  spitLaunchSpeed: 12
+  minMassAfterSpit: 10
+  spitOwnerGrace: 0.6
+  playerMoveSpeed: 4.2
+  playerMaxSpeed: 10.5
+  playerAcceleration: 38
+  playerDeceleration: 5
 --- !u!4 &1760399320
 Transform:
   m_ObjectHideFlags: 0
@@ -7337,11 +7372,11 @@ GameObject:
   - component: {fileID: 1992359180}
   - component: {fileID: 1992359179}
   - component: {fileID: 1992359178}
-  - component: {fileID: 1992359177}
   - component: {fileID: 1992359176}
   - component: {fileID: 1992359175}
   - component: {fileID: 1992359174}
   - component: {fileID: 1992359173}
+  - component: {fileID: 1992359181}
   m_Layer: 0
   m_Name: AI_00
   m_TagString: Enemy
@@ -7361,11 +7396,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 3.3695724
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 7.734788
   scanInterval: 0.2
   scanBufferSize: 32
@@ -7378,6 +7413,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &1992359174
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7390,6 +7428,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &1992359175
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7407,7 +7446,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -7442,42 +7488,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &1992359177
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1992359172}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -7584,6 +7594,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1992359181
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1992359172}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &2013905016
 GameObject:
   m_ObjectHideFlags: 0
@@ -7595,11 +7621,11 @@ GameObject:
   - component: {fileID: 2013905024}
   - component: {fileID: 2013905023}
   - component: {fileID: 2013905022}
-  - component: {fileID: 2013905021}
   - component: {fileID: 2013905020}
   - component: {fileID: 2013905019}
   - component: {fileID: 2013905018}
   - component: {fileID: 2013905017}
+  - component: {fileID: 2013905025}
   m_Layer: 0
   m_Name: AI_07
   m_TagString: Enemy
@@ -7619,11 +7645,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fcb82304792f414a9d351e66e38b944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.AIController
-  moveSpeed: 3.6534371
-  chaseSpeedFactor: 1.15
-  fleeSpeedFactor: 1.3
-  acceleration: 26
-  maxTurnDegreesPerSecond: 540
+  moveSpeed: 2.7
+  chaseSpeedFactor: 1.1
+  fleeSpeedFactor: 1.2
+  acceleration: 20
+  maxTurnDegreesPerSecond: 360
   scanRadius: 8.148251
   scanInterval: 0.2
   scanBufferSize: 32
@@ -7636,6 +7662,9 @@ MonoBehaviour:
   wanderChangeInterval: 2.5
   borderAvoidMargin: 2.5
   borderAvoidWeight: 2.2
+  avoidViruses: 1
+  virusAvoidRadius: 5
+  virusAvoidWeight: 2
 --- !u!114 &2013905018
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7648,6 +7677,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a7e029e889586341a32953979e51593, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.Eater
+  swallowCoverage: 0.97
 --- !u!114 &2013905019
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7665,7 +7695,14 @@ MonoBehaviour:
   minMass: 1
   maxMass: 100000
   radiusAtReferenceMass: 0.75
-  eatMassRatio: 1.2
+  radiusScale: 0
+  eatMassRatio: 1.25
+  decayEnabled: 1
+  decayThreshold: 500
+  decayPercentPerSecond: 0.0021
+  heavyDecayThreshold: 5000
+  heavyDecayMultiplier: 2
+  decayFloorMass: 10
   team: 1
   speedReferenceMass: 60
   minSpeedFactor: 0.4
@@ -7700,42 +7737,6 @@ CircleCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
---- !u!58 &2013905021
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2013905016}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -7842,6 +7843,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2013905025
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2013905016}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f756dc9fe34dc4d9e0f811441317da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QiuQiu.BallName
+  displayName: 
+  fontSize: 48
+  characterSize: 0.1
+  color: {r: 1, g: 1, b: 1, a: 0.92}
 --- !u!1 &2082981448
 GameObject:
   m_ObjectHideFlags: 0
@@ -8075,3 +8092,4 @@ SceneRoots:
   - {fileID: 292362250}
   - {fileID: 1937623048}
   - {fileID: 126896145}
+  - {fileID: 1216733331}

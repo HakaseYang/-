@@ -3,156 +3,103 @@ using UnityEngine.InputSystem;
 
 namespace QiuQiu
 {
-    // reads the Player action map and merges it with the on screen stick.
+    /// <summary>
+    /// Reads the three controls the game actually uses straight from the devices: a stick
+    /// direction, split and spit. No Input Action asset, no callbacks, no asset kept in sync
+    /// with the scene - one small class instead of twelve bindings.
+    /// </summary>
     public class InputReader
     {
-        private InputActionAsset controls;
-        private string actionMapName = "Player";
-        private string moveActionName = "Move";
-        private string splitActionName = "Split";
-        private string spitActionName = "Spit";
+        // the on screen spit button writes here. Static because that button lives in the UI
+        // and holds no reference to this reader.
+        private static bool mobileSpitHeld;
 
-        private InputAction moveAction;
-        private InputAction splitAction;
-        private InputAction spitAction;
+        private bool splitWasDown;
 
-        private Vector2 virtualMoveInput;
-        private bool listening;
-
-        public event System.Action SplitPressed;
-        public event System.Action SpitPressed;
-
-        public void Configure(InputActionAsset asset, string mapName, string moveName, string splitName, string spitName)
+        public static void SetMobileSpitHeld(bool held)
         {
-            controls = asset;
-            actionMapName = mapName;
-            moveActionName = moveName;
-            splitActionName = splitName;
-            spitActionName = spitName;
-        }
-        public void Resolve()
-        {
-            if (controls == null)
-            {
-                Debug.LogError("[InputReader] no Controls Input Action Asset, input is disabled");
-                return;
-            }
-
-            var map = controls.FindActionMap(actionMapName, false); //if not find return false
-            if (map == null)
-            {
-                Debug.LogError($"[InputReader] Input Action Map '{actionMapName}' does not exist");
-                return;
-            }
-
-            bool wasListening = listening;
-
-            if (wasListening)
-            {
-                Unsubscribe();
-            }
-
-            moveAction = map.FindAction(moveActionName, false);
-            splitAction = map.FindAction(splitActionName, false);
-            spitAction = map.FindAction(spitActionName, false);
-
-            if (moveAction == null) Debug.LogError($"[InputReader] Action '{moveActionName}' does not exist");
-            if (splitAction == null) Debug.LogError($"[InputReader] Action '{splitActionName}' does not exist");
-            if (spitAction == null) Debug.LogError($"[InputReader] Action '{spitActionName}' does not exist");
-
-            if (wasListening)
-            {
-                listening = false;
-                Enable();
-            }
+            mobileSpitHeld = held;
         }
 
         public void Enable()
         {
-            if (listening)
-            {
-                return;
-            }
-
-            moveAction?.Enable();
-            splitAction?.Enable();
-            spitAction?.Enable();
-
-            Subscribe();
-            listening = true;
         }
 
         public void Disable()
         {
-            if (!listening)
-            {
-                virtualMoveInput = Vector2.zero;    // drop the stick cache
-                return;
-            }
-
-            Unsubscribe();
-
-            moveAction?.Disable();
-            splitAction?.Disable();
-            spitAction?.Disable();
-
-            virtualMoveInput = Vector2.zero;
-            listening = false;
+            // a paused or disabled player must stop spitting, whatever the button says
+            mobileSpitHeld = false;
+            splitWasDown = false;
         }
 
-        // keyboard / gamepad and the on screen stick, whichever pushes harder
+        /// <summary>WASD, arrow keys or the gamepad stick, clamped to length 1.</summary>
         public Vector2 ReadMove()
-        {   
-            //get input( stick or WASD)
-            Vector2 pad = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
-            //Keyboard/ Mobile Joystick choses 1 (see who using)
-            return pad.sqrMagnitude >= virtualMoveInput.sqrMagnitude ? pad : virtualMoveInput;
+        {
+            Vector2 value = Vector2.zero;
+
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null)
+            {
+                if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) value.y += 1f;
+                if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) value.y -= 1f;
+                if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) value.x -= 1f;
+                if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) value.x += 1f;
+            }
+
+            Gamepad pad = Gamepad.current;
+            if (pad != null)
+            {
+                Vector2 stick = pad.leftStick.ReadValue();
+                if (stick.sqrMagnitude > value.sqrMagnitude)
+                {
+                    value = stick;
+                }
+            }
+
+            return Vector2.ClampMagnitude(value, 1f);
         }
 
-        public void SetVirtualMoveInput(Vector2 value)
+        /// <summary>True only on the frame the split key goes down.</summary>
+        public bool SplitPressedThisFrame()
         {
-            //avoid ��2 speed 
-            virtualMoveInput = Vector2.ClampMagnitude(value, 1f);
+            bool down = IsSplitDown();
+            bool pressed = down && !splitWasDown;
+            splitWasDown = down;
+            return pressed;
         }
 
-        private void Subscribe()
+        /// <summary>Spit repeats while held, so keyboard, gamepad and the phone button all feed
+        /// the same TrySpit() call from Update().</summary>
+        public bool SpitHeld
         {
-            if (splitAction != null)
+            get
             {
-                splitAction.performed += OnSplitPerformed;
-            }
-            if (spitAction != null)
-            {
-                spitAction.performed += OnSpitPerformed;
-            }
-        }
+                Keyboard keyboard = Keyboard.current;
+                if (keyboard != null && keyboard.kKey.isPressed)
+                {
+                    return true;
+                }
 
-        private void Unsubscribe()
-        {
-            if (splitAction != null)
-            {
-                splitAction.performed -= OnSplitPerformed;
-            }
-            if (spitAction != null)
-            {
-                spitAction.performed -= OnSpitPerformed;
-            }
-        }
+                Gamepad pad = Gamepad.current;
+                if (pad != null && pad.buttonWest.isPressed)
+                {
+                    return true;
+                }
 
-        private void OnSplitPerformed(InputAction.CallbackContext context)
-        {
-            if (SplitPressed != null)
-            {
-                SplitPressed();
+                return mobileSpitHeld;
             }
         }
 
-        private void OnSpitPerformed(InputAction.CallbackContext context)
+        private static bool IsSplitDown()
         {
-            if (SpitPressed != null)
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null && (keyboard.jKey.isPressed || keyboard.spaceKey.isPressed))
             {
-                SpitPressed();
+                return true;
             }
+
+            Gamepad pad = Gamepad.current;
+            return pad != null && pad.buttonSouth.isPressed;
         }
     }
 }

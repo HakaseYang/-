@@ -101,7 +101,11 @@ namespace QiuQiu
 
         private bool SpawnOne()
         {
-            if (foodSprite == null)
+            // A single sprite for every pellet made the floor read as a dotted grid, so each
+            // spawn picks one of the generated silhouettes (circle / triangle / square / ...).
+            Sprite shape = FoodShapes.Pick();
+
+            if (shape == null && foodSprite == null)
             {
                 return false;
             }
@@ -124,7 +128,7 @@ namespace QiuQiu
                     ? palette[Random.Range(0, palette.Length)]
                     : Color.green;
 
-                BallFactory.CreateFood(point, mass, foodSprite, color, foodParent);
+                BallFactory.CreateFood(point, mass, shape != null ? shape : foodSprite, color, foodParent);
                 return true;
             }
 

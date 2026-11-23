@@ -20,11 +20,11 @@ namespace QiuQiu
         }
 
         [Header("Move")]
-        [SerializeField] private float moveSpeed = 3.2f;
-        [SerializeField] private float chaseSpeedFactor = 1.15f;
-        [SerializeField] private float fleeSpeedFactor = 1.3f;
-        [SerializeField] private float acceleration = 26f;
-        [SerializeField] private float maxTurnDegreesPerSecond = 540f;
+        [SerializeField] private float moveSpeed = 2.7f;
+        [SerializeField] private float chaseSpeedFactor = 1.10f;
+        [SerializeField] private float fleeSpeedFactor = 1.20f;
+        [SerializeField] private float acceleration = 20f;
+        [SerializeField] private float maxTurnDegreesPerSecond = 360f;
 
         [Header("Scan")]
         [SerializeField] private float scanRadius = 8f;
@@ -42,6 +42,11 @@ namespace QiuQiu
         [SerializeField] private float borderAvoidMargin = 2.5f;
         [SerializeField] private float borderAvoidWeight = 2.2f;
 
+        [Header("Virus")]
+        [SerializeField] private bool avoidViruses = true;
+        [SerializeField] private float virusAvoidRadius = 5f;
+        [SerializeField] private float virusAvoidWeight = 2f;
+
         
         private struct ScanResult
         {
@@ -56,6 +61,9 @@ namespace QiuQiu
 
         private Rigidbody2D rb;
         private SizeController self;
+
+        // 场景里的 AI 从这里开始拿编号，避开 GameManager 自己分配的 0..N
+        private static int s_NextSceneBotId = 100;
         private ContactFilter2D filter;
         private Collider2D[] scanBuffer;
 
@@ -66,6 +74,39 @@ namespace QiuQiu
         private Vector2 wanderDirection = Vector2.right;
         private float nextWanderChangeTime;
         private float nextScanTime;
+
+        // virus burst: the cell is thrown outwards and ignores its own pathing for a moment
+        private float burstEndTime;
+        private float burstStartTime;
+        private Vector2 burstVelocity;
+
+        // Called by Virus when this cell was spawned by a burst.
+        public void BeginBurst(Vector2 velocity, float duration)
+        {
+            burstVelocity = velocity;
+            burstStartTime = Time.time;
+            burstEndTime = Time.time + Mathf.Max(0.05f, duration);
+
+            if (rb != null)
+            {
+                rb.linearVelocity = velocity;
+            }
+        }
+
+        private void TickBurst()
+        {
+            float span = Mathf.Max(0.05f, burstEndTime - burstStartTime);
+            float t = Mathf.Clamp01((Time.time - burstStartTime) / span);
+            if (rb != null)
+            {
+                rb.linearVelocity = burstVelocity * Mathf.Exp(-3.5f * t);
+            }
+
+            if (ArenaManager.Instance != null && rb != null)
+            {
+                ArenaManager.Instance.Constrain(rb, self.Radius);
+            }
+        }
 
         // make Ai different
         public void ApplyRandomProfile(float speedScale, float scanScale)
@@ -78,6 +119,13 @@ namespace QiuQiu
         {
             rb = GetComponent<Rigidbody2D>();
             self = GetComponent<SizeController>();
+
+            // 场景里手工摆放的 AI 没有走 GameManager 的生成流程，
+            // 这里补一个唯一编号，否则它们会全部算成同一个参赛者。
+            if (self != null && self.BotId < 0)
+            {
+                self.BotId = s_NextSceneBotId++;
+            }
 
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
@@ -104,6 +152,14 @@ namespace QiuQiu
                 return;
             }
 
+            // A virus just threw this cell outwards: it keeps flying until the push fades, and
+            // only then does normal pathing resume.
+            if (Time.time < burstEndTime)
+            {
+                TickBurst();
+                return;
+            }
+
             if (Time.time >= nextScanTime)
             {
                 nextScanTime = Time.time +  scanInterval;
@@ -112,6 +168,7 @@ namespace QiuQiu
 
             Vector2 desired = DecideDirection(); //go where
             desired = ApplyBorderAvoidance(desired); //in border?
+            desired = ApplyVirusAvoidance(desired);  //big ball: do not pop a virus by accident
             ApplyMovement(desired); //go
 
             //for ball go back to area(if go out)
@@ -346,7 +403,7 @@ namespace QiuQiu
                 return;
             }
 
-            float speed = moveSpeed * (self != null ? self.MoveSpeedFactor : 1f);
+            float speed = moveSpeed * (self != null ? self.MoveSpeedFactor : 1f) * GamePacing.AiMove;
             if (state == AIState.Chase)
             {
                 speed *= chaseSpeedFactor;
@@ -370,7 +427,8 @@ namespace QiuQiu
             }
 
             rb.linearVelocity = Vector2.MoveTowards(
-                currentVelocity, targetVelocity, Mathf.Max(1f, acceleration) * Time.fixedDeltaTime);
+                currentVelocity, targetVelocity,
+                Mathf.Max(1f, acceleration) * GamePacing.AiAcceleration * Time.fixedDeltaTime);
         }
 
         // soft border
@@ -394,6 +452,57 @@ namespace QiuQiu
                 return toCenter;
             }
             return blended.normalized;
+        }
+
+        // A ball big enough to pop a virus should not drive into one unless it is chasing
+        // something, so only big cells get this nudge. Small cells happily pass behind one.
+        private Vector2 ApplyVirusAvoidance(Vector2 direction)
+        {
+            if (!avoidViruses || self == null)
+            {
+                return direction;
+            }
+
+            IReadOnlyList<Virus> viruses = Virus.All;
+            if (viruses.Count == 0)
+            {
+                return direction;
+            }
+
+            Vector2 away = Vector2.zero;
+            Vector2 position = rb.position;
+
+            for (int i = 0; i < viruses.Count; i++)
+            {
+                Virus virus = viruses[i];
+                if (virus == null)
+                {
+                    continue;
+                }
+
+                // too small to pop it: the virus is not dangerous, ignore it
+                if (self.Mass <= virus.Mass)
+                {
+                    continue;
+                }
+
+                Vector2 offset = position - (Vector2)virus.transform.position;
+                float gap = Mathf.Sqrt(offset.sqrMagnitude) - virus.Radius - self.Radius;
+                if (gap > virusAvoidRadius)
+                {
+                    continue;
+                }
+
+                away += offset.normalized * (1f - Mathf.Clamp01(gap / Mathf.Max(0.01f, virusAvoidRadius)));
+            }
+
+            if (away.sqrMagnitude < 0.0001f)
+            {
+                return direction;
+            }
+
+            Vector2 blended = direction + away * virusAvoidWeight;
+            return blended.sqrMagnitude < 0.0001f ? direction : blended.normalized;
         }
 
         private void PickNewWanderDirection()

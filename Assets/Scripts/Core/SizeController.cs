@@ -14,11 +14,27 @@ namespace QiuQiu
         [SerializeField] private float minMass = 1f;
         [SerializeField] private float maxMass = 100000f;
 
+        // Agar.io style: Radius = Scale * sqrt(Mass). Only this one number decides how fat
+        // a ball looks, so changing it never breaks the mass -> radius relation.
         [Header("Mass To Radius")]
         [SerializeField] private float radiusAtReferenceMass = 0.75f;
+        [Tooltip("<= 0: derive from radiusAtReferenceMass. > 0: use directly as Radius = scale * sqrt(Mass)")]
+        [SerializeField] private float radiusScale = 0f;
 
         [Header("Eating Ball Threshold")]
-        [SerializeField, Range(1f, 2f)] private float eatMassRatio = 1.2f;   
+        [SerializeField, Range(1f, 3f)] private float eatMassRatio = 1.25f;   //Agar uses 1.25
+
+        [Header("Natural Mass Decay")]
+        [SerializeField] private bool decayEnabled = true;
+        [Tooltip("Only balls heavier than this start losing mass")]
+        [SerializeField] private float decayThreshold = 500f;
+        [Tooltip("Percent of mass lost per second, below the heavy threshold")]
+        [SerializeField, Range(0f, 0.05f)] private float decayPercentPerSecond = 0.0021f;
+        [Tooltip("Very heavy balls decay faster. 0 = no second stage")]
+        [SerializeField] private float heavyDecayThreshold = 5000f;
+        [SerializeField] private float heavyDecayMultiplier = 2f;
+        [Tooltip("Decay never pushes a ball under this mass")]
+        [SerializeField] private float decayFloorMass = 10f;
 
         [Header("Team")]
         [SerializeField] private Team team = Team.Player;
@@ -35,7 +51,19 @@ namespace QiuQiu
         //Read-only, accessible via an index
         public static IReadOnlyList<SizeController> Registry { get { return registry; } }
 
+        // Draw order follows the radius: a bigger ball is painted over a smaller one, so
+        // "who covers whom" on screen is exactly who can eat whom. Virus uses the same
+        // rule, which is why a big ball covers a virus and a small ball hides behind it.
+        public const int SortingBase = 10;
+        public const float SortingPerUnitRadius = 8f;
+
+        public static int SortingOrderForRadius(float radius)
+        {
+            return SortingBase + Mathf.RoundToInt(radius * SortingPerUnitRadius);
+        }
+
         private Rigidbody2D rb;
+        private SpriteRenderer spriteRenderer;
         private float invulnerableUntil;   // Invincible time （0 = not protect）
 
         private void OnEnable()
@@ -54,20 +82,76 @@ namespace QiuQiu
         private void Awake()
         {
             rb = GetComponent<Rigidbody2D>();
+            StripSolidColliders();
             ApplySizeNow();
+        }
+
+        // Balls never push each other here: eating needs one ball to slide over the other, and
+        // a solid collider stops exactly that. Factory made balls only get a trigger, but a ball
+        // placed by hand in the scene can still carry a solid one, so it is removed on spawn.
+        private void StripSolidColliders()
+        {
+            Collider2D[] colliders = GetComponents<Collider2D>();
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                if (colliders[i] != null && !colliders[i].isTrigger)
+                {
+                    Destroy(colliders[i]);
+                }
+            }
         }
 
         public float Mass { get { return mass; } }
         public Team Team { get { return team; } }
+
+        // Logical owner id. Every cell of one AI carries the same id, so a virus burst that
+        // splits one bot into sixteen cells still counts as ONE participant.
+        // -1 = not part of the bot roster (the human player).
+        public int BotId { get; set; } = -1;
+
+        // Identity of the group this cell belongs to. Every cell of one player, or of one
+        // bot, shares the same value, so 16 split pieces are still "the same owner".
+        // Used to stop a ball from eating the mass it just spat out.
+        public int OwnerId
+        {
+            get
+            {
+                if (team == Team.Player)
+                {
+                    return 0;   // there is only one human player
+                }
+                return BotId >= 0 ? BotId : -1 - GetInstanceID();
+            }
+        }
+
         public bool IsDead { get; private set; }
         public bool IsInvulnerable { get { return Time.time < invulnerableUntil; } }
+
+        // set while a fresh split piece is still sliding out of its parent: other systems
+        // must leave its position and scale alone until the animation finishes
+        public bool IsEjecting { get; set; }
+
+        // while true ApplySizeNow still updates radius/collider/sorting, but not the visual
+        // scale, so an animation can own the transform scale
+        public bool SuppressVisual { get; set; }
 
         public float Radius
         {
             get
-            {   //Mathf for / protect
-                float massRatio = Mathf.Max(mass, 0.0001f) / Mathf.Max(referenceMass, 0.0001f);
-                return radiusAtReferenceMass * Mathf.Sqrt(massRatio);
+            {   //Radius = RadiusScale * sqrt(Mass) : mass doubles -> radius x1.41, not x2
+                return RadiusScale * Mathf.Sqrt(Mathf.Max(mass, 0.0001f));
+            }
+        }
+
+        public float RadiusScale
+        {
+            get
+            {
+                if (radiusScale > 0f)
+                {
+                    return radiusScale;
+                }
+                return radiusAtReferenceMass / Mathf.Sqrt(Mathf.Max(referenceMass, 0.0001f));
             }
         }
 
@@ -208,6 +292,40 @@ namespace QiuQiu
             }
         }
 
+        // ---- natural mass decay ----
+        // Agar.io style: once a cell passes the threshold it slowly loses mass, so nobody
+        // can sit at the top forever. Exponential, so it never depends on frame rate.
+        private void Update()
+        {
+            TickDecay(Time.deltaTime);
+        }
+
+        private void TickDecay(float deltaTime)
+        {
+            if (!decayEnabled || IsDead || deltaTime <= 0f || mass <= decayThreshold)
+            {
+                return;
+            }
+
+            float rate = decayPercentPerSecond;
+            if (heavyDecayThreshold > 0f && mass >= heavyDecayThreshold)
+            {
+                rate *= Mathf.Max(1f, heavyDecayMultiplier);
+            }
+
+            float next = mass * Mathf.Exp(-rate * deltaTime);
+            float floor = Mathf.Max(minMass, decayFloorMass);
+            if (next < floor)
+            {
+                next = floor;
+            }
+
+            if (next < mass)
+            {
+                SetMass(next);   // SetMass -> ApplySizeNow, so radius follows the new mass
+            }
+        }
+
         public void Die(SizeController killer)
         {
             if (IsDead)
@@ -222,8 +340,21 @@ namespace QiuQiu
 
         public void ApplySizeNow()
         {
-            float scale = 2f * Radius;   
-            transform.localScale = new Vector3(scale, scale, 1f);
+            if (!SuppressVisual)
+            {
+                float scale = 2f * Radius;
+                transform.localScale = new Vector3(scale, scale, 1f);
+            }
+
+            // same formula as Virus, so ball-vs-virus order is decided by real size too
+            if (spriteRenderer == null)
+            {
+                spriteRenderer = GetComponent<SpriteRenderer>();
+            }
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.sortingOrder = SortingOrderForRadius(Radius);
+            }
 
             if (rb == null)
             {

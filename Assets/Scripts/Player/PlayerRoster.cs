@@ -45,7 +45,9 @@ namespace QiuQiu
 
                 balls.Add(ball);
 
-            if (main == null || ball.Mass > main.Mass)
+            // control stays on the ball you already had: a new piece never steals it,
+            // otherwise the camera/triangle would hop between cells every time one grows
+            if (main == null)
             {
                 main = ball;
             }
@@ -72,28 +74,31 @@ namespace QiuQiu
             main = null;
         }
 
-        // pick the heaviest living ball again(when masses changed)
-        // the current main keeps the role on a tie, so a split never swaps control
+        // you drive the biggest cell, like Agar. The switch is not "pick the max every
+        // frame": two halves of a split are the same mass and would swap the control back
+        // and forth, so another cell has to be clearly heavier before it takes over.
+        private const float TakeOverRatio = 1.02f;
+
         public void RefreshMain()
         {
-            SizeController best = main != null && !main.IsDead && balls.Contains(main) ? main : null;
-            float bestMass = best != null ? best.Mass : float.MinValue;
-
-            for (int i = 0; i < balls.Count; i++)
+            if (balls.Count == 0)
             {
-                SizeController ball = balls[i];
-                if (ball == null || ball.IsDead)
-                {
-                    continue;
-                }
-                if (ball.Mass > bestMass)
-                {
-                    bestMass = ball.Mass;
-                    best = ball;
-                }
+                main = null;
+                return;
             }
 
-            main = best;
+            SizeController best = Largest();
+
+            if (main == null || main.IsDead || !balls.Contains(main))
+            {
+                main = best;
+                return;
+            }
+
+            if (best != null && best != main && best.Mass > main.Mass * TakeOverRatio)
+            {
+                main = best;
+            }
         }
         public SizeController Largest()
         {

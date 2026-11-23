@@ -51,6 +51,50 @@ namespace QiuQiu
         [SerializeField] private bool freezeOnGameOver = true;
         [SerializeField] private bool muteAudioOnGameOver;
 
+        // Everything below is applied to the player cells at runtime, so this is the one place
+        // to tune the game feel. Values are pushed on Start and whenever you press
+        // "Apply Tuning Now" (or edit the field while the game is running).
+        [Header("Tuning: eating")]
+        [Tooltip("How much of the smaller ball must be inside the bigger one before it is eaten. 0.97 = almost fully covered.")]
+        [SerializeField, Range(0.5f, 1f)] private float swallowCoverage = 0.97f;
+
+        [Header("Tuning: split")]
+        [Tooltip("How far the new cell is placed, as a multiple of (parent radius + new radius).")]
+        [SerializeField, Range(1f, 3f)] private float splitDistanceMultiplier = 1.55f;
+        [Tooltip("Launch speed of a split, as a multiple of the cell's normal move speed.")]
+        [SerializeField, Range(0f, 10f)] private float splitImpulseFactor = 4.5f;
+        [Tooltip("How long the launched cell keeps coasting before the follow spring takes over.")]
+        [SerializeField] private float splitCoastDuration = 0.75f;
+        [Tooltip("How long the new cell takes to slide out of the parent.")]
+        [SerializeField] private float splitEjectDuration = 0.18f;
+
+        [Header("Tuning: merge")]
+        [Tooltip("Total length of the merge animation (slide + melt).")]
+        [SerializeField] private float mergePullDuration = 1.4f;
+        [Tooltip("Part of the merge spent sliding in; the rest is spent shrinking away.")]
+        [SerializeField, Range(0.1f, 0.9f)] private float mergeSlidePortion = 0.45f;
+        [SerializeField] private float mergeCooldown = 4.5f;
+        [Tooltip("Extra merge cooldown per point of mass.")]
+        [SerializeField] private float mergeCooldownPerMass = 0.002f;
+        [SerializeField] private float mergeCooldownMax = 8f;
+
+        [Header("Tuning: spit")]
+        [SerializeField] private float spitCooldown = 0.26f;
+        [Tooltip("Mass taken from the cell per spore.")]
+        [SerializeField] private float spitMassCost = 8f;
+        [Tooltip("Mass of the spore that actually lands on the ground.")]
+        [SerializeField] private float spitFoodMass = 6f;
+        [SerializeField] private float spitLaunchSpeed = 12f;
+        [SerializeField] private float minMassAfterSpit = 10f;
+        [Tooltip("Seconds during which the shooter cannot swallow its own spore.")]
+        [SerializeField] private float spitOwnerGrace = 0.6f;
+
+        [Header("Tuning: movement")]
+        [SerializeField] private float playerMoveSpeed = 4.2f;
+        [SerializeField] private float playerMaxSpeed = 10.5f;
+        [SerializeField] private float playerAcceleration = 38f;
+        [SerializeField] private float playerDeceleration = 5f;
+
         public RoundState State { get; private set; }
 
         // Play Respawn
@@ -126,7 +170,67 @@ namespace QiuQiu
             FinalMass = PeakMass;
 
             ResolveBallSprite();
+            ApplyTuning();
         }
+
+        // Pushes the Inspector numbers into the runtime components. Called once on Start, and
+        // again from the context menu so you can tweak while the game is playing.
+        [ContextMenu("Apply Tuning Now")]
+        public void ApplyTuning()
+        {
+            Eater.DefaultSwallowCoverage = swallowCoverage;
+            foreach (Eater eater in FindObjectsByType<Eater>(FindObjectsSortMode.None))
+            {
+                eater.SwallowCoverage = swallowCoverage;
+            }
+
+            PlayerCellMotion.DefaultMergeSlidePortion = mergeSlidePortion;
+
+            if (player == null)
+            {
+                player = PlayerController.Active;
+            }
+
+            if (player == null)
+            {
+                return;
+            }
+
+            PlayerController.PlayerTuning tuning = player.CaptureTuning();
+            tuning.moveSpeed = playerMoveSpeed;
+            tuning.maxSpeedHardLimit = playerMaxSpeed;
+            tuning.acceleration = playerAcceleration;
+            tuning.deceleration = playerDeceleration;
+
+            tuning.splitDistanceMultiplier = splitDistanceMultiplier;
+            tuning.splitImpulseFactor = splitImpulseFactor;
+            tuning.splitCoastDuration = splitCoastDuration;
+            tuning.splitEjectDuration = splitEjectDuration;
+
+            tuning.mergePullDuration = mergePullDuration;
+            tuning.mergeCooldown = mergeCooldown;
+            tuning.mergeCooldownPerMass = mergeCooldownPerMass;
+            tuning.mergeCooldownMax = mergeCooldownMax;
+
+            tuning.spitCooldown = spitCooldown;
+            tuning.spitMassCost = spitMassCost;
+            tuning.spitFoodMass = spitFoodMass;
+            tuning.spitLaunchSpeed = spitLaunchSpeed;
+            tuning.minMassAfterSpit = minMassAfterSpit;
+            tuning.spitOwnerGrace = spitOwnerGrace;
+
+            player.ApplyTuning(tuning);
+        }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (Application.isPlaying)
+            {
+                ApplyTuning();
+            }
+        }
+#endif
 
         private void Update()
         {
@@ -371,7 +475,8 @@ namespace QiuQiu
 
         public int AliveAiCount
         {
-            get { return ScoreBoard.AliveCount(aiTeam); }
+            // logical bots, not cells: one bot split into 16 cells still occupies one slot
+            get { return ScoreBoard.AliveBots(aiTeam); }
         }
 
         private void TickAiRespawn()
@@ -413,6 +518,7 @@ namespace QiuQiu
             position = FindSafeSpawnPoint(mass, position);
 
             string aiName = $"AI_{aiSpawnCounter:00}"; // for check
+            int botId = aiSpawnCounter;
             aiSpawnCounter++;
 
             var go = BallFactory.CreateBall(aiName, position, mass, sprite, color, aiTeam);
@@ -422,6 +528,7 @@ namespace QiuQiu
             ai.ApplyRandomProfile(UnityEngine.Random.Range(0.9f, 1.25f), UnityEngine.Random.Range(0.85f, 1.15f));
 
             var size = go.GetComponent<SizeController>();
+            size.BotId = botId;      // the id the leaderboard and the respawn count use
             size.SetInvulnerable(aiSpawnInvulnerability);
 
             return size;

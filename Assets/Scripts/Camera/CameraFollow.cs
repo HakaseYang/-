@@ -30,6 +30,10 @@ namespace QiuQiu
         [Tooltip("Cell radius multiplier used when fitting the group on screen")]
         [SerializeField] private float radiusScale = 1.05f;
 
+        [Header("Arena edge")]
+        [Tooltip("How far the camera may look past the arena wall, so the border stays visible")]
+        [SerializeField] private float edgePadding = 2.5f;
+
         [Header("Split zoom")]
         [Tooltip("The view while split is baseZoomMultiplier x the normal view. 1.40 = the balls look 1/1.4 as big")]
         [SerializeField] private float splitZoomMultiplier = 1.40f;
@@ -340,13 +344,16 @@ namespace QiuQiu
 
             // Only clamp an axis when the arena is wider than the view on that axis,
             // otherwise the clamp would fight the follow and cause jitter.
+            // edgePadding keeps a strip of "outside" on screen so the wall itself stays visible.
             if (half.x * 2f > halfWidth * 2f)
             {
-                center.x = Mathf.Clamp(center.x, arenaCenter.x - half.x + halfWidth, arenaCenter.x + half.x - halfWidth);
+                float limit = Mathf.Max(0f, half.x - halfWidth + edgePadding);
+                center.x = Mathf.Clamp(center.x, arenaCenter.x - limit, arenaCenter.x + limit);
             }
             if (half.y * 2f > halfHeight * 2f)
             {
-                center.y = Mathf.Clamp(center.y, arenaCenter.y - half.y + halfHeight, arenaCenter.y + half.y - halfHeight);
+                float limit = Mathf.Max(0f, half.y - halfHeight + edgePadding);
+                center.y = Mathf.Clamp(center.y, arenaCenter.y - limit, arenaCenter.y + limit);
             }
             return center;
         }

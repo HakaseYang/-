@@ -8,6 +8,9 @@ namespace QiuQiu
         [SerializeField] private float borderMargin = 1f;   // Minimum distance from the food center to the site boundary
         [Header("Count")]
         [SerializeField] private int maxFoodCount = 500;
+        // Phones get a smaller plate: every pellet is a full GameObject with a body and a
+        // collider, and a big board of them is what makes low-end devices run out of memory.
+        [SerializeField] private int mobileFoodCap = 400;
         [SerializeField] private bool fillOnStart = true;
         [SerializeField] private float checkInterval = 0.5f;
         [SerializeField] private int maxSpawnsPerTick = 40;
@@ -36,6 +39,11 @@ namespace QiuQiu
 
         private void Start()
         {
+            if (Application.isMobilePlatform && mobileFoodCap > 0 && maxFoodCount > mobileFoodCap)
+            {
+                maxFoodCount = mobileFoodCap;
+            }
+
             player = PlayerController.Active != null ? PlayerController.Active : FindFirstObjectByType<PlayerController>();
 
             if (foodSprite == null && player != null)

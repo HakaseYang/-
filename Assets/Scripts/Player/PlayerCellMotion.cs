@@ -28,9 +28,6 @@ namespace QiuQiu
     [DisallowMultipleComponent]
     public class PlayerCellMotion : MonoBehaviour
     {
-        // GameManager owns this number so the merge feel can be tuned from one Inspector field.
-        public static float DefaultMergeSlidePortion = 0.45f;
-
         [Header("Group movement")]
         [Tooltip("How hard a cell reaches its target speed when the player pushes it")]
         [SerializeField] private float acceleration = 60f;
@@ -53,6 +50,15 @@ namespace QiuQiu
 
         [Tooltip("Speed cap for the closing motion itself, not counting the group's own speed")]
         [SerializeField] private float maxDriftSpeed = 6f;
+
+        [Tooltip("Cells may float this many body-widths apart before the leash pulls them back. 1 = always touching")]
+        [SerializeField] private float leashSlack = 1.6f;
+
+        [Tooltip("Share of the separation turned sideways, so a small cell slides around the big one instead of sticking behind it")]
+        [SerializeField, Range(0f, 1f)] private float slideAround = 0.55f;
+
+        [Tooltip("How fast a cell answers when the target speed points against the way it is already going. Lower = heavier")]
+        [SerializeField] private float reverseRate = 8f;
 
         [Header("Split slide")]
         [Tooltip("How big a new piece is when it appears inside its parent, relative to its final size")]
@@ -81,15 +87,16 @@ namespace QiuQiu
 
         // merge pull
         private SizeController mergeKeeper;
-        private Vector2 mergeFrom;
-        private float mergeStartRadius;
-        private float mergeElapsed;
-        private float mergeDuration = 0.45f;
         private float mergeEase = 2f;
         private System.Action mergeFinished;
         private int mergeStartOrder;
-        [Tooltip("Share of the merge spent sliding into the keeper; the rest is the melt-in")]
-        [SerializeField, Range(0.1f, 0.9f)] private float mergeSlidePortion = 0.45f;
+
+        // How much the player's stick still steers a cell that is being swallowed. 0 = the cell
+        // marches straight into the body, 1 = the stick moves it as strongly as the crawl does.
+        private const float mergeSteer = 0.85f;
+
+        private float mergeCrawlSpeed = 0.7f;
+        private float mergeEatDepth = 0.35f;
 
         public CellMotionState State { get { return state; } }
 
@@ -126,7 +133,9 @@ namespace QiuQiu
         // pushed down here. Called on creation and whenever ApplyTuning() runs, never per frame.
         public void ApplyMotionTuning(
             float accel, float decel, float speedLimit,
-            float followAccel, float strength, float damping, float maxDrift)
+            float followAccel, float strength, float damping, float maxDrift,
+            float reverseSpeed, float slide, float leash,
+            float crawlSpeed, float eatDepth)
         {
             acceleration = accel;
             deceleration = decel;
@@ -135,6 +144,11 @@ namespace QiuQiu
             homeStrength = strength;
             homeDamping = damping;
             maxDriftSpeed = maxDrift;
+            reverseRate = reverseSpeed;
+            slideAround = Mathf.Clamp01(slide);
+            leashSlack = Mathf.Max(1f, leash);
+            mergeCrawlSpeed = Mathf.Max(0.05f, crawlSpeed);
+            mergeEatDepth = Mathf.Clamp(eatDepth, 0.05f, 1f);
         }
 
         // ---- state changes -------------------------------------------------------------
@@ -207,32 +221,26 @@ namespace QiuQiu
             }
         }
 
-        public void BeginMerge(SizeController keeper, float duration, float ease, System.Action onFinished)
+        public void BeginMerge(SizeController keeper, float crawlSpeed, float eatDepth, float ease, System.Action onFinished)
         {
             CacheParts();
 
             mergeKeeper = keeper;
-            mergeFrom = rb != null ? rb.position : (Vector2)transform.position;
-            mergeStartRadius = self != null ? self.Radius : 0.5f;
-            mergeDuration = Mathf.Max(0.01f, duration);
+            mergeCrawlSpeed = Mathf.Max(0.05f, crawlSpeed);
+            mergeEatDepth = Mathf.Clamp(eatDepth, 0.05f, 1f);
             mergeEase = Mathf.Max(0.01f, ease);
             mergeFinished = onFinished;
-            mergeElapsed = 0f;
-            mergeSlidePortion = Mathf.Clamp(DefaultMergeSlidePortion, 0.1f, 0.9f);
 
             state = CellMotionState.Merging;
 
-            if (self != null)
-            {
-                self.SuppressVisual = true;
-            }
-
-            SetCollidersEnabled(false);
+            // Colliders stay ON. A cell that is busy being swallowed is still a normal target for
+            // enemies: if a bigger ball covers it first, this cell dies and the merge is dropped.
+            // Its own keeper cannot eat it (Eater ignores player vs player).
 
             if (rb != null)
             {
+                rb.bodyType = RigidbodyType2D.Dynamic;
                 rb.linearVelocity = Vector2.zero;
-                rb.bodyType = RigidbodyType2D.Kinematic;
             }
 
             // Draw the melting cell on top of the keeper: behind it, the shrink would be hidden
@@ -268,14 +276,12 @@ namespace QiuQiu
 
             if (self != null)
             {
-                self.SuppressVisual = false;
                 self.ApplySizeNow();
             }
 
             if (rb != null)
             {
                 rb.bodyType = RigidbodyType2D.Dynamic;
-                rb.position = mergeFrom;
                 rb.linearVelocity = Vector2.zero;
             }
 
@@ -346,28 +352,70 @@ namespace QiuQiu
                 return;
             }
 
-            // everyone in the group uses the leader's speed, so a sub cell can never slowly
-            // outrun the big one
-            Vector2 groupVelocity = owner.GroupVelocity;
-
-            Vector2 offset = (rb != null ? rb.position : (Vector2)transform.position) - (Vector2)leader.transform.position;
+            Vector2 position = rb != null ? rb.position : (Vector2)transform.position;
+            Vector2 offset = position - (Vector2)leader.transform.position;
+            float distance = offset.magnitude;
             float restDistance = leader.Radius + self.Radius;
+            Vector2 direction = distance > 0.0001f ? offset / distance : Vector2.right;
 
-            Vector2 direction = offset.sqrMagnitude > 0.0001f ? offset.normalized : Vector2.zero;
-            if (direction == Vector2.zero)
+            // Heavy feels heavy: a small cell answers its own input faster than a big one, which is
+            // also what lets it catch up and slide around the leader instead of trailing behind.
+            float weight = Mathf.Clamp(Mathf.Pow(60f / Mathf.Max(1f, self.Mass), 0.2f), 0.4f, 1.6f);
+            float response = followAcceleration * weight;
+
+            // A sub cell is NOT glued to the big one. It only gets pushed when the bodies overlap,
+            // and only gets pulled when the leash is stretched to its max.
+            Vector2 closing = Vector2.zero;
+
+            if (distance < restDistance)
             {
-                Vector2 drifting = (rb != null ? rb.linearVelocity : Vector2.zero) - groupVelocity;
-                direction = drifting.sqrMagnitude > 0.0001f ? drifting.normalized : Vector2.right;
+                float overlap = restDistance - distance;
+                Vector2 push = direction * Mathf.Min(overlap * homeStrength, maxDriftSpeed * weight);
+
+                // part of the push is sideways: that makes a slower big cell squeeze the small one
+                // out around its side rather than wedging it at the back
+                Vector2 tangent = new Vector2(-direction.y, direction.x);
+                float side = Vector2.Dot(rb != null ? rb.linearVelocity : Vector2.zero, tangent) >= 0f ? 1f : -1f;
+
+                closing = push * (1f - slideAround) + tangent * (side * push.magnitude * slideAround);
+            }
+            else if (distance > restDistance * leashSlack)
+            {
+                float lag = distance - restDistance * leashSlack;
+                closing = -direction * Mathf.Min(lag * homeStrength * 0.5f, maxDriftSpeed * 0.6f);
             }
 
-            Vector2 restingSpot = direction * restDistance;
-            Vector2 closing = (restingSpot - offset) * homeStrength;
-            if (closing.sqrMagnitude > maxDriftSpeed * maxDriftSpeed)
+            // The trip home does not wait for the cooldown. A cell that flew out on a split starts
+            // drifting back the moment the launch impulse is spent, so it never parks at the far
+            // end and then snaps back. Only the swallow itself waits for the cooldown.
+            if (distance > restDistance * 1.02f)
             {
-                closing = Vector2.ClampMagnitude(closing, maxDriftSpeed);
+                closing += -direction * mergeCrawlSpeed;
             }
 
-            Steer(groupVelocity + closing, followAcceleration, followAcceleration);
+            // Once the cooldown is over a cell aims at the nearest cell it may melt into. That is
+            // not always the main ball: two sub cells are allowed to join each other, so the target
+            // is whichever partner is closest and ready.
+            if (owner.CanMerge(self))
+            {
+                SizeController partner;
+                if (owner.TryFindMergePartner(self, out partner) && partner != null)
+                {
+                    Vector2 toPartner = (Vector2)partner.transform.position - position;
+                    float partnerDistance = toPartner.magnitude;
+                    if (partnerDistance > 0.0001f)
+                    {
+                        closing += toPartner / partnerDistance * mergeCrawlSpeed;
+                    }
+                }
+            }
+
+            // A small cell moves at its own (faster) speed; the bigger one uses the group speed.
+            Vector2 ownVelocity = owner.MoveInput * (owner.MoveSpeed * self.MoveSpeedFactor);
+            Vector2 groupVelocity = owner.GroupVelocity;
+            Vector2 baseVelocity = ownVelocity.sqrMagnitude >= groupVelocity.sqrMagnitude ? ownVelocity : groupVelocity;
+
+            Steer(baseVelocity + closing, response, response);
         }
 
         // One steering rule for every state that is not an animation: approach the target
@@ -380,11 +428,32 @@ namespace QiuQiu
             }
 
             bool pushing = targetVelocity.sqrMagnitude > 0.0001f;
-            float rate = pushing ? pushRate : idleRate;
+            if (!pushing)
+            {
+                // No input: a heavy ball keeps gliding. There is no friction here on purpose -
+                // the player stops it by pushing the other way.
+                Constrain();
+                return;
+            }
+
+            float rate = pushRate;
+
+            // Reversing a heavy ball is not instant: when the target points back against the way we
+            // are already moving, answer with reverseRate instead of the full push rate.
+            Vector2 current = rb.linearVelocity;
+            if (pushing && current.sqrMagnitude > 0.0001f && reverseRate > 0f)
+            {
+                float align = Vector2.Dot(current.normalized, targetVelocity.normalized);
+                if (align < 0.35f)
+                {
+                    float heaviness = Mathf.InverseLerp(0.35f, -1f, align);
+                    rate = Mathf.Lerp(rate, reverseRate, heaviness);
+                }
+            }
 
             Vector2 next = rate <= 0f
                 ? targetVelocity
-                : Vector2.MoveTowards(rb.linearVelocity, targetVelocity, rate * Time.fixedDeltaTime);
+                : Vector2.MoveTowards(current, targetVelocity, rate * Time.fixedDeltaTime);
 
             if (maxSpeedHardLimit > 0f && next.sqrMagnitude > maxSpeedHardLimit * maxSpeedHardLimit)
             {
@@ -434,8 +503,13 @@ namespace QiuQiu
             float t = Mathf.Clamp01(coastElapsed / Mathf.Max(0.05f, coastDuration));
 
             Vector2 groupVelocity = owner != null ? owner.GroupVelocity : Vector2.zero;
-            float decay = Mathf.Exp(-3.5f * t);          // 1 -> 0.03, fast at the start
-            Vector2 velocity = groupVelocity + splitDirection * (splitImpulse * decay);
+
+            // Fly out, slow down, turn around and start coming back - one continuous motion, no
+            // stop in between. The outward part fades exactly as fast as the inward part grows.
+            float fade = Mathf.Exp(-3.5f * t);          // 1 -> 0.03
+            float outward = splitImpulse * fade;
+            float inward = mergeCrawlSpeed * (1f - fade);
+            Vector2 velocity = groupVelocity + splitDirection * (outward - inward);
 
             // A split launch is meant to be faster than normal movement, so the ordinary speed
             // cap must not eat the impulse. Coasting speed is allowed up to the impulse itself.
@@ -475,27 +549,30 @@ namespace QiuQiu
                 return;
             }
 
-            mergeElapsed += Time.fixedDeltaTime;
-            float t = Mathf.Clamp01(mergeElapsed / mergeDuration);
+            Vector2 keeperPos = mergeKeeper.transform.position;
+            Vector2 position = rb != null ? rb.position : (Vector2)transform.position;
+            Vector2 offset = keeperPos - position;
+            float distance = offset.magnitude;
+            float contact = mergeKeeper.Radius + self.Radius;
+            Vector2 direction = distance > 0.0001f ? offset / distance : Vector2.zero;
 
-            // Two stages so the merge reads as "sliding in, then melting in":
-            //   0 .. mergeSlidePortion   the cell travels to the keeper, still full size
-            //   remainder                it shrinks away inside the keeper
-            float slide = Mathf.Clamp01(t / mergeSlidePortion);
-            float melt = Mathf.Clamp01((t - mergeSlidePortion) / Mathf.Max(0.01f, 1f - mergeSlidePortion));
-
-            if (rb != null)
+            // Shoved away by the player: give up, keep every gram of mass.
+            if (distance > contact * 1.15f)
             {
-                Vector2 target = mergeKeeper.transform.position;
-                rb.MovePosition(Vector2.Lerp(mergeFrom, target, MergeEase(slide, mergeEase)));
+                AbortMerge();
+                return;
             }
 
-            // Shrink a bit during the slide and the rest while melting, so it never pops.
-            float shrink = Mathf.Lerp(0.15f, 1f, MergeEase(melt, mergeEase));
-            ApplyRadius(Mathf.Lerp(mergeStartRadius, 0f, Mathf.Clamp01(shrink)));
+            // Crawl in slowly, still full size: it must read as the cell sliding into the body,
+            // not as it shrinking away on the spot. The player can still steer it - the stick
+            // direction is added on top, so the cell drifts off course while being swallowed.
+            if (rb != null)
+            {
+                Vector2 steer = owner != null ? owner.MoveInput * (owner.MoveSpeed * self.MoveSpeedFactor) : Vector2.zero;
+                rb.linearVelocity = direction * mergeCrawlSpeed + steer * mergeSteer;
+            }
 
-            // ApplyRadius recomputes sortingOrder from the shrinking radius, which would drop the
-            // melting cell behind the keeper and hide the whole animation. Pin it on top each step.
+            // Draw it above the keeper, otherwise it vanishes behind the big body while sliding in.
             if (shell != null)
             {
                 SpriteRenderer keeperShell = mergeKeeper.GetComponent<SpriteRenderer>();
@@ -503,7 +580,12 @@ namespace QiuQiu
                 shell.sortingOrder = keeperOrder + 2;
             }
 
-            if (t < 1f)
+            // Covered = eaten. Full cover means the small body fits inside the big one, i.e. its
+            // centre is at most (keeperRadius - ownRadius) away. When the two are nearly the same
+            // size that distance is close to zero, so a fraction of the keeper radius is used as a
+            // floor - otherwise equal halves could never finish merging.
+            float covered = Mathf.Max(mergeKeeper.Radius - self.Radius, mergeKeeper.Radius * mergeEatDepth);
+            if (distance > covered)
             {
                 return;
             }
@@ -516,7 +598,7 @@ namespace QiuQiu
 
             if (finished != null)
             {
-                finished();   // PlayerMerge commits the mass and kills this cell
+                finished();   // PlayerMerge drops this cell from the roster
             }
         }
 

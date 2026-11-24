@@ -13,6 +13,7 @@ namespace QiuQiu
         // the on screen spit button writes here. Static because that button lives in the UI
         // and holds no reference to this reader.
         private static bool mobileSpitHeld;
+        private static bool mobileSplitTap;
 
         private bool splitWasDown;
 
@@ -29,6 +30,7 @@ namespace QiuQiu
         {
             // a paused or disabled player must stop spitting, whatever the button says
             mobileSpitHeld = false;
+            mobileSplitTap = false;
             splitWasDown = false;
         }
 
@@ -62,10 +64,23 @@ namespace QiuQiu
         /// <summary>True only on the frame the split key goes down.</summary>
         public bool SplitPressedThisFrame()
         {
+            if (mobileSplitTap)
+            {
+                mobileSplitTap = false;
+                splitWasDown = false;
+                return true;
+            }
+
             bool down = IsSplitDown();
             bool pressed = down && !splitWasDown;
             splitWasDown = down;
             return pressed;
+        }
+
+        // The phone button has no key, so a tap is queued here and consumed once.
+        public static void RequestSplitTap()
+        {
+            mobileSplitTap = true;
         }
 
         /// <summary>Spit repeats while held, so keyboard, gamepad and the phone button all feed

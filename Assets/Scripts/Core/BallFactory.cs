@@ -7,7 +7,8 @@ namespace QiuQiu
     public static class BallFactory
     {
         private const float FoodDiameterAtMass1 = 0.28f;
-        private const float DefaultLinearDamping = 3f;
+        // No drag: a ball coasts until something stops it, the player has to push back.
+        private const float DefaultLinearDamping = 0f;
 
         private const int BallOrder = 10;
         private const int FoodOrder = 2;
@@ -75,7 +76,7 @@ namespace QiuQiu
             return go;
         }
 
-        public static Edible CreateSpitFood(string name, Vector3 position, Vector2 velocity, float mass, Sprite sprite, Color color, float armDelay, SizeController owner, float ownerGrace)
+        public static Edible CreateSpitFood(string name, Vector3 position, Vector2 velocity, float mass, float payback, Sprite sprite, Color color, float armDelay, SizeController owner, float ownerGrace)
         {
             // spores are pooled: holding the spit button must not allocate a new object per pellet
             Edible edible = SporePool.Take();
@@ -109,6 +110,7 @@ namespace QiuQiu
             if (owner != null)
             {
                 edible.SetOwner(owner.Team, owner.OwnerId, ownerGrace);
+                edible.SetPayback(payback);
             }
 
             // Activate first, then give the speed. A Rigidbody2D that is switched on wakes up with

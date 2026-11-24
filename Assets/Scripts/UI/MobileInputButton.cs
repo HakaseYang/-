@@ -53,6 +53,11 @@ namespace QiuQiu
             {
                 InputReader.SetMobileSpitHeld(true);
             }
+            else
+            {
+                // split is a one shot: queue it for the next Update
+                InputReader.RequestSplitTap();
+            }
         }
 
         public void OnPointerUp(PointerEventData eventData)

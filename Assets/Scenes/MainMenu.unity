@@ -1216,6 +1216,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 640645241}
   m_CullTransparentMesh: 1
+--- !u!115 &654483148
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: JuicyButton
+  m_Namespace: QiuQiu
+  m_AssemblyName: Assembly-CSharp
 --- !u!1 &774147570
 GameObject:
   m_ObjectHideFlags: 0
@@ -3267,6 +3282,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1601943579}
   m_CullTransparentMesh: 1
+--- !u!115 &1621772582
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: UiJuiceBootstrap
+  m_Namespace: QiuQiu
+  m_AssemblyName: Assembly-CSharp
 --- !u!1 &1650039447
 GameObject:
   m_ObjectHideFlags: 0

@@ -62,8 +62,23 @@ namespace QiuQiu
                 return;
             }
 
-            if (self.Team == Team.Player && target.Team == Team.Player)
+            bool ownCell = self.Team == Team.Player && target.Team == Team.Player;
+            if (ownCell)
             {
+                // Your own cells are food too: the moment one of them is really inside another the
+                // covered one is gone and the covering one grows. A piece that is still sliding out
+                // of its parent is skipped, otherwise a split would be swallowed in the same frame.
+                if (target.IsInvulnerable || target.IsEjecting)
+                {
+                    return;
+                }
+
+                if (!Within(swallowCoverage, target))
+                {
+                    return;
+                }
+
+                self.TryEatOwn(target);
                 return;
             }
 
@@ -91,10 +106,15 @@ namespace QiuQiu
                 return false;
             }
 
-            // How far the prey's covered part spans: c = (R - d + r) / 2r, so solving for the
-            // centre distance gives d = R + r - 2cr. coverage 0.5 -> d = R (half covered),
-            // coverage 1 -> d = R - r (fully swallowed).
-            float allowed = self.Radius + target.Radius - 2f * swallowCoverage * target.Radius;
+            return Within(swallowCoverage, target);
+        }
+
+        // How far the prey's covered part spans: c = (R - d + r) / 2r, so solving for the
+        // centre distance gives d = R + r - 2cr. coverage 0.5 -> d = R (half covered),
+        // coverage 1 -> d = R - r (fully swallowed).
+        private bool Within(float coverage, SizeController target)
+        {
+            float allowed = self.Radius + target.Radius - 2f * coverage * target.Radius;
             if (allowed <= 0f)
             {
                 return false;

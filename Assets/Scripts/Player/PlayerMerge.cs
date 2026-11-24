@@ -226,13 +226,13 @@ namespace QiuQiu
             merging.Add(small);
             jobs.Add(new Job { small = small, keeper = keeper });
 
-            // the cell animates itself; when the pull is over it calls back so the mass is
-            // committed in exactly one place
-            motion.BeginMerge(keeper, tuning.mergePullDuration * GamePacing.MergeDuration, tuning.mergePullEase, () => Commit(small, keeper));
+            // The cell animates itself and hands its mass over frame by frame; when it is fully
+            // swallowed it calls back so the roster can drop it.
+            motion.BeginMerge(keeper, tuning.mergeCrawlSpeed, tuning.mergeEatDepth, tuning.mergePullEase, () => Commit(small, keeper));
         }
 
-        // called by the cell when its pull animation finished: this is the only place that
-        // adds the mass, so a merge can never add it twice
+        // Called when the swallow finished. This is the only place the keeper grows, so the whole
+        // cell's mass arrives in one step at the exact moment it disappears inside the body.
         private void Commit(SizeController small, SizeController keeper)
         {
             jobs.RemoveAll(job => job.small == small);
@@ -243,8 +243,7 @@ namespace QiuQiu
                 return;
             }
 
-            float gain = small.Mass;
-            keeper.AddMass(gain);
+            keeper.AddMass(small.Mass);
 
             // Die fires the Eaten event while "merging" still holds the cell, so
             // PlayerController knows this was our own merge and not an enemy kill

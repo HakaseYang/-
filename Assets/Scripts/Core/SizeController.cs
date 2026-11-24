@@ -250,6 +250,38 @@ namespace QiuQiu
             return true;
         }
 
+        // Own cells are allowed to swallow each other with no size requirement at all: two equal
+        // halves merge as soon as one of them is really inside the other. Only one of the pair may
+        // do it, otherwise both would eat each other in the same frame and both would vanish.
+        public bool TryEatOwn(SizeController other)
+        {
+            if (other == null || ReferenceEquals(other, this))
+            {
+                return false;
+            }
+
+            if (IsDead || other.IsDead || other.IsInvulnerable || other.IsEjecting)
+            {
+                return false;
+            }
+
+            if (mass < other.mass)
+            {
+                return false;
+            }
+
+            // equal halves: the lower id wins, so exactly one of the two does the eating
+            if (mass == other.mass && GetInstanceID() < other.GetInstanceID())
+            {
+                return false;
+            }
+
+            float gain = other.mass;
+            other.Die(this);
+            AddMass(gain);
+            return true;
+        }
+
         // set by GameManager : how big an AI may grow,float.MaxValue just work for sure AI can grow
         public static float AiMassCap = float.MaxValue; //Sentinel Value
 

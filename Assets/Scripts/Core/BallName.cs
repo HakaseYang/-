@@ -54,8 +54,18 @@ namespace QiuQiu
             label.anchor = TextAnchor.MiddleCenter;
             label.alignment = TextAlignment.Center;
             label.color = color;
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.richText = false;
+            if (label.font == null)
+            {
+                label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            }
+
+            if (label.font == null)
+            {
+                // no built-in font in this build: drop the label instead of throwing
+                Destroy(go);
+                return;
+            }
 
             labelRenderer = go.GetComponent<MeshRenderer>();
             if (labelRenderer != null)

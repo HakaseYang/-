@@ -69,10 +69,16 @@ namespace QiuQiu
         [SerializeField] private float splitEjectDuration = 0.18f;
 
         [Header("Tuning: merge")]
-        [Tooltip("Total length of the merge animation (slide + melt).")]
-        [SerializeField] private float mergePullDuration = 1.4f;
-        [Tooltip("Part of the merge spent sliding in; the rest is spent shrinking away.")]
-        [SerializeField, Range(0.1f, 0.9f)] private float mergeSlidePortion = 0.45f;
+        [Tooltip("How fast a merging cell crawls into the keeper. Slow on purpose.")]
+        [SerializeField] private float mergeCrawlSpeed = 1.6f;
+        [Tooltip("Smallest fraction of the keeper radius that counts as fully covered (a floor for equal-sized cells)")]
+        [SerializeField, Range(0.05f, 1f)] private float mergeEatDepth = 0.35f;
+        [Tooltip("How much of a body overlap is turned sideways so a small cell slides around the big one")]
+        [SerializeField, Range(0f, 1f)] private float cellSlideAround = 0.55f;
+        [Tooltip("How many body-widths a cell may drift away before the leash pulls it back. 1 = always touching")]
+        [SerializeField] private float cellLeashSlack = 1.6f;
+        [Tooltip("Separation speed for own cells that may not merge yet. Must beat the group speed or they wedge together")]
+        [SerializeField] private float cellPushApartSpeed = 40f;
         [SerializeField] private float mergeCooldown = 4.5f;
         [Tooltip("Extra merge cooldown per point of mass.")]
         [SerializeField] private float mergeCooldownPerMass = 0.002f;
@@ -84,6 +90,8 @@ namespace QiuQiu
         [SerializeField] private float spitMassCost = 8f;
         [Tooltip("Mass of the spore that actually lands on the ground.")]
         [SerializeField] private float spitFoodMass = 6f;
+        [Tooltip("A pellet carries at most this fraction of the mass paid for it, so spitting can never print free weight")]
+        [SerializeField, Range(0.1f, 1f)] private float spitReturnRatio = 0.8f;
         [SerializeField] private float spitLaunchSpeed = 12f;
         [SerializeField] private float minMassAfterSpit = 10f;
         [Tooltip("Seconds during which the shooter cannot swallow its own spore.")]
@@ -94,6 +102,9 @@ namespace QiuQiu
         [SerializeField] private float playerMaxSpeed = 10.5f;
         [SerializeField] private float playerAcceleration = 38f;
         [SerializeField] private float playerDeceleration = 5f;
+
+        [Tooltip("How fast a ball answers when the stick is pushed the opposite way. Lower = heavier.")]
+        [SerializeField] private float playerReverseRate = 8f;
 
         public RoundState State { get; private set; }
 
@@ -129,6 +140,8 @@ namespace QiuQiu
             Instance = this;
 
             Time.timeScale = 1f;
+
+            UiJuiceBootstrap.JuiceScene();
 
             if (player == null)
             {
@@ -184,8 +197,6 @@ namespace QiuQiu
                 eater.SwallowCoverage = swallowCoverage;
             }
 
-            PlayerCellMotion.DefaultMergeSlidePortion = mergeSlidePortion;
-
             if (player == null)
             {
                 player = PlayerController.Active;
@@ -207,7 +218,12 @@ namespace QiuQiu
             tuning.splitCoastDuration = splitCoastDuration;
             tuning.splitEjectDuration = splitEjectDuration;
 
-            tuning.mergePullDuration = mergePullDuration;
+            tuning.mergeCrawlSpeed = mergeCrawlSpeed;
+            tuning.mergeEatDepth = mergeEatDepth;
+            tuning.slideAround = cellSlideAround;
+            tuning.leashSlack = cellLeashSlack;
+            tuning.pushApartSpeed = cellPushApartSpeed;
+            tuning.reverseRate = playerReverseRate;
             tuning.mergeCooldown = mergeCooldown;
             tuning.mergeCooldownPerMass = mergeCooldownPerMass;
             tuning.mergeCooldownMax = mergeCooldownMax;
@@ -215,6 +231,7 @@ namespace QiuQiu
             tuning.spitCooldown = spitCooldown;
             tuning.spitMassCost = spitMassCost;
             tuning.spitFoodMass = spitFoodMass;
+        tuning.spitReturnRatio = spitReturnRatio;
             tuning.spitLaunchSpeed = spitLaunchSpeed;
             tuning.minMassAfterSpit = minMassAfterSpit;
             tuning.spitOwnerGrace = spitOwnerGrace;

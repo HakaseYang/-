@@ -14,8 +14,10 @@ namespace QiuQiu
         [SerializeField] private float moveSpeed = 4.2f;
         [SerializeField] private float maxSpeedHardLimit = 10.5f;
         [SerializeField] private float acceleration = 38f;
-        [Tooltip("How fast a ball bleeds off speed when nobody pushes it. This is also what makes the split launch fade instead of stopping dead.")]
-        [SerializeField] private float deceleration = 5f;
+        [Tooltip("How fast a ball bleeds off speed when nobody pushes it. Low = it coasts like a heavy object.")]
+        [SerializeField] private float deceleration = 1.2f;
+        [Tooltip("How fast a ball answers when the stick is pushed the opposite way. Lower = heavier.")]
+        [SerializeField] private float reverseRate = 8f;
         [SerializeField] private float inputDeadZone = 0.2f;
 
         [Header("Split")]
@@ -53,10 +55,17 @@ namespace QiuQiu
         [Tooltip("Fallback follow acceleration, only used when there is no big ball to sit beside")]
         [SerializeField] private float subFollowAcceleration = 22f;
 
+        [Tooltip("Share of a body overlap turned sideways, so a small cell slides around the big one")]
+        [SerializeField, Range(0f, 1f)] private float slideAround = 0.55f;
+        [Tooltip("How many body-widths a cell may drift away before the leash pulls it back. 1 = always touching")]
+        [SerializeField] private float leashSlack = 1.6f;
+
         [Header("Spit")]
         [Tooltip("Mass taken from the cell per pellet. Kept low so a freshly split sub cell can still spit")]
         [SerializeField] private float spitMassCost = 8f;
         [SerializeField] private float spitFoodMass = 6f;
+        [Tooltip("A pellet carries at most this fraction of the mass that was paid for it, so spitting can never print free weight")]
+        [SerializeField, Range(0.1f, 1f)] private float spitReturnRatio = 0.8f;
         [Tooltip("A cell needs more than spitMassCost + this to spit, so tiny cells cannot drain themselves")]
         [SerializeField] private float minMassAfterSpit = 10f;
         [Tooltip("Seconds between two pellets while the spit button is held. Too short and the pellets pile up into one blob")]
@@ -75,10 +84,12 @@ namespace QiuQiu
         [SerializeField] private float mergeCooldownPerMass = 0.002f;
         [SerializeField] private float mergeCooldownMax = 8f;
         [Tooltip("Own cells behave like solid bodies: two cells that are not allowed to merge yet push each other apart at this speed (units per second). Set to 0 to let them overlap again.")]
-        [SerializeField] private float pushApartSpeed = 4f;
+        [SerializeField] private float pushApartSpeed = 40f;
         [SerializeField] private float mergeContactTolerance = 0.15f;
-        [Tooltip("Seconds of visible merge: the cell first slides into the keeper, then melts into it")]
-        [SerializeField] private float mergePullDuration = 1.4f;
+        [Tooltip("How fast a merging cell crawls into the keeper once its cooldown is over. Slow on purpose.")]
+        [SerializeField] private float mergeCrawlSpeed = 0.7f;
+        [Tooltip("Smallest fraction of the keeper radius that counts as fully covered (a floor for equal-sized cells)")]
+        [SerializeField, Range(0.05f, 1f)] private float mergeEatDepth = 0.35f;
         [SerializeField] private float mergePullEase = 2f;
 
         [Header("Adoption")]
@@ -120,6 +131,7 @@ namespace QiuQiu
             public float maxSpeedHardLimit;
             public float acceleration;
             public float deceleration;
+        public float reverseRate;
             public float inputDeadZone;
 
             public float splitMinMass;
@@ -133,6 +145,7 @@ namespace QiuQiu
 
             public float spitMassCost;
             public float spitFoodMass;
+            public float spitReturnRatio;
             public float minMassAfterSpit;
             public float spitCooldown;
             public float spitRetryInterval;
@@ -146,8 +159,11 @@ namespace QiuQiu
             public float mergeCooldownMax;
             public float pushApartSpeed;
             public float mergeContactTolerance;
-            public float mergePullDuration;
+            public float mergeCrawlSpeed;
+        public float mergeEatDepth;
             public float mergePullEase;
+            public float slideAround;
+            public float leashSlack;
         }
 
         public PlayerTuning CaptureTuning()
@@ -158,6 +174,7 @@ namespace QiuQiu
                 maxSpeedHardLimit = maxSpeedHardLimit,
                 acceleration = acceleration,
                 deceleration = deceleration,
+                reverseRate = reverseRate,
                 inputDeadZone = inputDeadZone,
 
                 splitMinMass = splitMinMass,
@@ -171,6 +188,7 @@ namespace QiuQiu
 
                 spitMassCost = spitMassCost,
                 spitFoodMass = spitFoodMass,
+                spitReturnRatio = spitReturnRatio,
                 minMassAfterSpit = minMassAfterSpit,
                 spitCooldown = spitCooldown,
                 spitRetryInterval = spitRetryInterval,
@@ -184,8 +202,11 @@ namespace QiuQiu
                 mergeCooldownMax = mergeCooldownMax,
                 pushApartSpeed = pushApartSpeed,
                 mergeContactTolerance = mergeContactTolerance,
-                mergePullDuration = mergePullDuration,
+                mergeCrawlSpeed = mergeCrawlSpeed,
+                mergeEatDepth = mergeEatDepth,
                 mergePullEase = mergePullEase,
+                slideAround = slideAround,
+                leashSlack = leashSlack,
             };
         }
 
@@ -200,6 +221,7 @@ namespace QiuQiu
             maxSpeedHardLimit = tuning.maxSpeedHardLimit;
             acceleration = tuning.acceleration;
             deceleration = tuning.deceleration;
+            reverseRate = tuning.reverseRate;
             inputDeadZone = tuning.inputDeadZone;
 
             splitMinMass = tuning.splitMinMass;
@@ -213,6 +235,7 @@ namespace QiuQiu
 
             spitMassCost = tuning.spitMassCost;
             spitFoodMass = tuning.spitFoodMass;
+            spitReturnRatio = tuning.spitReturnRatio;
             minMassAfterSpit = tuning.minMassAfterSpit;
             spitCooldown = tuning.spitCooldown;
             spitRetryInterval = tuning.spitRetryInterval;
@@ -226,8 +249,11 @@ namespace QiuQiu
             mergeCooldownMax = tuning.mergeCooldownMax;
             pushApartSpeed = tuning.pushApartSpeed;
             mergeContactTolerance = tuning.mergeContactTolerance;
-            mergePullDuration = tuning.mergePullDuration;
+            mergeCrawlSpeed = tuning.mergeCrawlSpeed;
+            mergeEatDepth = tuning.mergeEatDepth;
             mergePullEase = tuning.mergePullEase;
+            slideAround = tuning.slideAround;
+            leashSlack = tuning.leashSlack;
 
             SyncTools();
         }
@@ -371,7 +397,8 @@ namespace QiuQiu
 
                 motion.ApplyMotionTuning(
                     acceleration, deceleration, maxSpeedHardLimit,
-                    subFollowAcceleration, subHomeStrength, subHomeDamping, subMaxDriftSpeed);
+                    subFollowAcceleration, subHomeStrength, subHomeDamping, subMaxDriftSpeed,
+                    reverseRate, slideAround, leashSlack, mergeCrawlSpeed, mergeEatDepth);
             }
         }
 
@@ -552,7 +579,8 @@ namespace QiuQiu
                     motion.Initialize(this);
                     motion.ApplyMotionTuning(
                         acceleration, deceleration, maxSpeedHardLimit,
-                        subFollowAcceleration, subHomeStrength, subHomeDamping, subMaxDriftSpeed);
+                        subFollowAcceleration, subHomeStrength, subHomeDamping, subMaxDriftSpeed,
+                        reverseRate, slideAround, leashSlack, mergeCrawlSpeed, mergeEatDepth);
                 }
 
                 // the merge pull owns this cell right now
@@ -579,6 +607,15 @@ namespace QiuQiu
 
             roster.Add(ball);
             ball.Eaten += OnBallEaten;
+
+            // Player cells carry no drag: the input alone decides the speed, so letting go of the
+            // stick keeps the ball gliding until it is pushed the other way. Balls placed by hand
+            // in the scene still carry the Rigidbody2D drag they were saved with, so zero it here.
+            Rigidbody2D body = ball.GetComponent<Rigidbody2D>();
+            if (body != null)
+            {
+                body.linearDamping = 0f;
+            }
 
             merge.Register(ball);
         }
@@ -761,7 +798,8 @@ namespace QiuQiu
             motion.Initialize(this);
             motion.ApplyMotionTuning(
                 acceleration, deceleration, maxSpeedHardLimit,
-                subFollowAcceleration, subHomeStrength, subHomeDamping, subMaxDriftSpeed);
+                subFollowAcceleration, subHomeStrength, subHomeDamping, subMaxDriftSpeed,
+                reverseRate, slideAround, leashSlack, mergeCrawlSpeed, mergeEatDepth);
 
             RegisterBall(ball);
             return ball;
@@ -797,6 +835,44 @@ namespace QiuQiu
         public bool IsMerging(SizeController ball)
         {
             return merge.IsMerging(ball);
+        }
+
+        // Nearest cell this one is allowed to melt into. Two sub cells join each other, not only
+        // into the main ball, so the merge target is picked by distance among every ready cell.
+        public bool TryFindMergePartner(SizeController ball, out SizeController partner)
+        {
+            partner = null;
+
+            if (ball == null || roster == null)
+            {
+                return false;
+            }
+
+            float bestDistance = float.MaxValue;
+
+            for (int i = 0; i < roster.Balls.Count; i++)
+            {
+                SizeController other = roster.Balls[i];
+
+                if (other == null || other == ball || other.IsDead)
+                {
+                    continue;
+                }
+
+                if (!merge.CanMerge(other))
+                {
+                    continue;
+                }
+
+                float distance = Vector2.Distance(ball.transform.position, other.transform.position);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    partner = other;
+                }
+            }
+
+            return partner != null;
         }
 
 

@@ -13,6 +13,7 @@ namespace QiuQiu
         private float armedAt;    //  avoid  own spits the ball then get back at once
         private bool poolable;    //  set for  FoodPool to recycle 
         private bool spore;       //  true for mass a ball spat out (can feed a virus)
+        private float payback;    //  mass the spitter gets back when it eats its own pellet
 
         // who spat this pellet out, and when it becomes edible for that same group again
         private bool hasOwner;
@@ -131,6 +132,15 @@ namespace QiuQiu
         public void MarkSpore()
         {
             spore = true;
+            payback = 0f;
+        }
+
+        // How much the spitter itself gets back if it swallows this pellet again. It is always
+        // less than what it paid, otherwise spitting and eating would print free weight. Everyone
+        // else still eats the full mass, so a pellet is never a way to hide mass from the world.
+        public void SetPayback(float value)
+        {
+            payback = Mathf.Max(0f, value);
         }
 
         // Remember who spat it out. A pooled pellet is handed out again and again, so this
@@ -149,8 +159,12 @@ namespace QiuQiu
         // pellet is ordinary food again, otherwise spit mass could never be re-absorbed.
         private bool IsSameOwnerBlocked(SizeController eater)
         {
+            return IsOwnedBy(eater) && Time.time < ownerFreeAt;
+        }
+
+        private bool IsOwnedBy(SizeController eater)
+        {
             return hasOwner
-                && Time.time < ownerFreeAt
                 && eater != null
                 && eater.Team == ownerTeam
                 && eater.OwnerId == ownerId;
@@ -209,7 +223,21 @@ namespace QiuQiu
             }
 
             consumed = true;
-            eater.AddMassFromEat(mass);
+
+            // Spat mass pays back exactly what the pellet says. Everything else goes through the
+            // difficulty table, which would otherwise turn a 6 mass pellet into a 9 mass meal on
+            // the easy preset and let players farm their own spit.
+            if (spore)
+            {
+                // The spitter only gets its payback back, outsiders get the whole pellet. That
+                // keeps the pellet looking big while making spit-and-swallow a net loss.
+                float gain = IsOwnedBy(eater) && payback > 0f ? payback : mass;
+                eater.AddMass(gain);
+            }
+            else
+            {
+                eater.AddMassFromEat(mass);
+            }
 
             // only the player's own eating is audible
             if (eater.Team == Team.Player && AudioManager.Instance != null)

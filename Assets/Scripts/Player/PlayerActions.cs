@@ -182,13 +182,18 @@ namespace QiuQiu
                 // Spawning at body radius only buries half of the pellet inside the ball, and
                 // no arm delay can hide that.
                 Vector2 cellDir = CellDirection(dir, centroid, ball.transform.position, roster.Count, centerAmount);
-                float sporeRadius = BallFactory.SporeRadius(tuning.spitFoodMass);
+
+                // The pellet keeps its full size and full value for everyone else, but its own
+                // spitter only gets part of the cost back, so spit-and-swallow can not print mass.
+                float sporeMass = tuning.spitFoodMass;
+                float payback = tuning.spitMassCost * tuning.spitReturnRatio;
+                float sporeRadius = BallFactory.SporeRadius(sporeMass);
                 float spawnDistance = ball.Radius + sporeRadius + tuning.spitSpawnGap;
                 Vector3 position = ball.transform.position + (Vector3)(cellDir * spawnDistance);
 
                 BallFactory.CreateSpitFood("SpitFood", position,
                     cellDir * (tuning.spitLaunchSpeed * GamePacing.SpitLaunch),
-                    tuning.spitFoodMass, sprite, Lighten(color), tuning.spitArmDelay, ball,
+                    sporeMass, payback, sprite, Lighten(color), tuning.spitArmDelay, ball,
                     tuning.spitOwnerGrace);
 
                 ejected++;

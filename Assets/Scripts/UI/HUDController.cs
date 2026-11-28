@@ -19,7 +19,7 @@ namespace QiuQiu
         private float nextRefreshTime;
         private int lastRank = -1;
         private int lastTotal = -1;
-        private int lastMassInt = -1;   //to sure first fram have
+        private int lastMassInt = -1;
 
         public int CurrentRank { get; private set; } = 1;
         public int TotalParticipants { get; private set; } = 1;
@@ -36,13 +36,12 @@ namespace QiuQiu
             {
                 return;
             }
-            //if not have > find
             foreach (Text text in GetComponentsInChildren<Text>(true))
             {
                 if (massText == null && IsMassLabel(text.name))
                 {
                     massText = text;
-                }                            // 0 to final find have Rank text to make it be "rankText"  >not find give back -1,have find 0
+                }
                 else if (rankText == null && text.name.IndexOf("Rank", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     rankText = text;
@@ -76,7 +75,6 @@ namespace QiuQiu
         {
             GameManager gm = GameManager.Instance;
 
-            // round over: keep the last numbers instead of showing zeros
             if (!force && gm != null && !gm.IsRunning)
             {
                 return;
@@ -94,7 +92,6 @@ namespace QiuQiu
 
         private void UpdateRank(GameManager gm, float mass)
         {
-            //11 participants is 1 player + 10 bots, counted per bot id, never per cell
             TotalParticipants = gm != null ? gm.ParticipantCount : 1 + ScoreBoard.AliveBots(Team.Enemy);
             ScoreBoard.Rank(mass, TotalParticipants, out int rank);
             CurrentRank = rank;
@@ -102,7 +99,7 @@ namespace QiuQiu
 
         private void UpdateLabels(bool force, float mass)
         {
-            int massInt = Mathf.RoundToInt(mass);//4 out(0.4>0)  5 in(0.5>1)
+            int massInt = Mathf.RoundToInt(mass);
             if (force || massInt != lastMassInt)
             {
                 lastMassInt = massInt;

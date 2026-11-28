@@ -43,12 +43,10 @@ public class AudioManager : MonoBehaviour
 
     void Awake()
     {
-        // use the field here, not the Instance property:
-        // the property searches the scene, finds this very object and destroys it.
         if (instance == null)
         {
             instance = this;
-            DontDestroyOnLoad(gameObject); // survives scene loads
+            DontDestroyOnLoad(gameObject);
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
         else if (instance != this)
@@ -71,13 +69,11 @@ public class AudioManager : MonoBehaviour
         if (bgmSource != null)
         {
             bgmSource.volume = PlayerPrefs.GetFloat(BgmVolumeKey, bgmSource.volume);
-            // the round ends with PlayRoundEnd stopping the music, so a fresh start has to arm it again
             bgmSource.Play();
         }
         if (sfxSource != null)
         {
             sfxSource.volume = PlayerPrefs.GetFloat(SfxVolumeKey, sfxSource.volume);
-            // ui clicks must still be heard while the pause screen holds the listener paused
             sfxSource.ignoreListenerPause = true;
         }
         if (uiSource != null)
@@ -97,7 +93,6 @@ public class AudioManager : MonoBehaviour
         bgmSource.Play();
     }
 
-    // --- volume ---
     public float GetBgmVolume()
     {
         return bgmSource != null ? bgmSource.volume : PlayerPrefs.GetFloat(BgmVolumeKey, 1f);
@@ -132,7 +127,6 @@ public class AudioManager : MonoBehaviour
         PlayerPrefs.SetFloat(SfxVolumeKey, value);
     }
 
-    // --- public hooks ---
     public void PlayBGM()
     {
         if (bgmSource != null && !bgmSource.isPlaying)
@@ -184,7 +178,7 @@ public class AudioManager : MonoBehaviour
     {
         if (bgmSource != null)
         {
-            bgmSource.Stop(); // stop the music on death
+            bgmSource.Stop();
         }
         PlaySFX(gameOverClip, 1f);
     }
@@ -193,7 +187,6 @@ public class AudioManager : MonoBehaviour
     {
         if (clip != null && sfxSource != null)
         {
-            // random pitch so repeated pickups do not sound flat
             sfxSource.pitch = Random.Range(0.9f, 1.1f);
             sfxSource.PlayOneShot(clip, volume);
         }

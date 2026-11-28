@@ -97,30 +97,20 @@ namespace QiuQiu
 
         private readonly InputReader playerInput = new InputReader();
 
-        // the list of balls and the main ball live in PlayerRoster
         private readonly PlayerRoster roster = new PlayerRoster();
 
-        // split / spit rules (cooldowns, mass math, spawn point) live in PlayerActions
         private readonly PlayerActions actions = new PlayerActions();
 
         private Vector2 moveInput;
 
-        // split/spit aim: last input, right by default
         private Vector2 facing = Vector2.right;
 
-        // where split / spit actually fly. The mouse when there is one (Agar.io), else the
-        // direction the stick points at.
         private Vector2 aim = Vector2.right;
 
-        // How far the stick is pushed in, 0 = at the rim (perpendicular spit), 1 = at the
-        // centre (centre spit). Smoothed so dragging the stick in changes the stance gradually
-        // instead of flipping between two directions.
         private float centerAimAmount;
 
-        // merge rules (cooldown, pull animation, mass hand-over) live in PlayerMerge
         private readonly PlayerMerge merge = new PlayerMerge();
 
-        // one triangle per ball, so you can see where the whole group is heading
         private readonly System.Collections.Generic.Dictionary<SizeController, PlayerMarker> markers =
             new System.Collections.Generic.Dictionary<SizeController, PlayerMarker>();
 
@@ -259,14 +249,12 @@ namespace QiuQiu
         }
 
 
-        // tuning snapshot used when respawning (owned by GameManager)
         private static PlayerTuning s_PendingTuning;
 
         private void Awake()
         {
             Active = this;
 
-            // ApplyTuning already pushes the numbers down to the cells
             if (s_PendingTuning != null)
             {
                 PlayerTuning tuning = s_PendingTuning;
@@ -278,7 +266,6 @@ namespace QiuQiu
             SyncTools();
         }
 
-        // every ball carries its own arrow, created the first frame it shows up
         private void SyncMarkers()
         {
             for (int i = 0; i < roster.Count; i++)
@@ -294,7 +281,6 @@ namespace QiuQiu
                 markers.Add(ball, go.AddComponent<PlayerMarker>());
             }
 
-            // drop arrows whose ball is gone
             if (markers.Count == 0)
             {
                 return;
@@ -329,8 +315,6 @@ namespace QiuQiu
         {
             SyncMarkers();
 
-            // each arrow shows where THAT cell will actually spit / split, so pushing the stick
-            // in visibly turns the arrows from sideways into crossed
             Vector2 centroid = GroupCentroid();
             int count = roster.Count;
 
@@ -368,7 +352,6 @@ namespace QiuQiu
             return n > 0 ? sum / n : (Vector2)transform.position;
         }
 
-        //give Inspector Parameters to PlayerActions??PlayerMerge
         private void SyncTools()
         {
             PlayerTuning snapshot = CaptureTuning();
@@ -377,8 +360,6 @@ namespace QiuQiu
             PushMotionTuning();
         }
 
-        // the motion values live on the cells that already exist, so a tuning change has to be
-        // pushed down once instead of every frame
         private void PushMotionTuning()
         {
             for (int i = 0; i < roster.Count; i++)
@@ -427,8 +408,6 @@ namespace QiuQiu
                 AdoptOrphanPlayerBalls();
             }
 
-            // Space is the split key, and a selected UI button would also fire on Space.
-            // Turning navigation off keeps the on screen buttons finger/click only.
             Selectable[] selectables = FindObjectsByType<Selectable>(FindObjectsSortMode.None);
             for (int i = 0; i < selectables.Length; i++)
             {
@@ -459,12 +438,9 @@ namespace QiuQiu
         {
             moveInput = playerInput.ReadMove();
 
-            // Pushing the stick from the rim toward the centre is what turns the spit from
-            // perpendicular into crossed and finally into a centre spit.
             float wantedCenter = Mathf.Clamp01(1f - moveInput.magnitude);
             centerAimAmount = Mathf.MoveTowards(centerAimAmount, wantedCenter, Time.deltaTime * centerAimSpeed);
 
-            // mouse beats the stick; keyboard-only play keeps using the movement direction
             Vector2 mouseAim;
             if (TryReadMouseAim(out mouseAim))
             {
@@ -475,8 +451,6 @@ namespace QiuQiu
                 aim = facing;
             }
 
-            // one edge per press for split, and repeat while the spit button stays down,
-            // so tap and hold both work from the same place
             if (playerInput.SplitPressedThisFrame())
             {
                 TrySplit();
@@ -526,22 +500,17 @@ namespace QiuQiu
 
         private void FixedUpdate()
         {
-            // 1. drop balls that died without firing the event
             roster.PruneDead(UnhookBall);
 
-            // 2. adopt any orphan player balls
             if (roster.Count == 0 && autoAdoptPlayerBalls)
             {
                 AdoptOrphanPlayerBalls();
             }
 
-            // 3. main ball = largest alive ball
             roster.RefreshMain();
 
-            // 4. every cell gets exactly one motion owner, and learns whether it is the main one
             SyncMotion();
 
-            // 5. input
             Vector2 input = Vector2.ClampMagnitude(moveInput, 1f);
             if (input.magnitude < inputDeadZone)
             {
@@ -552,13 +521,9 @@ namespace QiuQiu
                 facing = input.normalized;
             }
 
-            // 6. merge: pull the running swallow first, then look for a new pair
             merge.Tick(Time.fixedDeltaTime);
         }
 
-        // Every player cell gets exactly one motion owner. PlayerController no longer writes a
-        // Rigidbody itself: it only says which cell is the main one. The motion component
-        // decides how to move, and the merge pull is allowed to keep a cell busy.
         private void SyncMotion()
         {
             SizeController main = roster.Main;
@@ -583,7 +548,6 @@ namespace QiuQiu
                         reverseRate, slideAround, leashSlack, mergeCrawlSpeed, mergeEatDepth);
                 }
 
-                // the merge pull owns this cell right now
                 if (merge.IsMerging(ball))
                 {
                     continue;
@@ -608,9 +572,6 @@ namespace QiuQiu
             roster.Add(ball);
             ball.Eaten += OnBallEaten;
 
-            // Player cells carry no drag: the input alone decides the speed, so letting go of the
-            // stick keeps the ball gliding until it is pushed the other way. Balls placed by hand
-            // in the scene still carry the Rigidbody2D drag they were saved with, so zero it here.
             Rigidbody2D body = ball.GetComponent<Rigidbody2D>();
             if (body != null)
             {
@@ -632,7 +593,6 @@ namespace QiuQiu
             merge.Drop(ball);
         }
 
-        // one place unhooks a ball the roster dropped: events plus merge bookkeeping
         private void UnhookBall(SizeController ball)
         {
             ball.Eaten -= OnBallEaten;
@@ -662,14 +622,13 @@ namespace QiuQiu
         {
             victim.Eaten -= OnBallEaten;
 
-            // a merged ball also fires Eaten,so it is merge?
             bool mergedIn = merge.IsMerging(victim);
-            merge.Drop(victim); //clear merging
+            merge.Drop(victim);
 
             bool wasMain = roster.Main == victim;
             roster.Remove(victim);
 
-            if (mergedIn) return;   // self merge 
+            if (mergedIn) return;
 
             string killerName = killer != null ? killer.name : "unknown";
 
@@ -709,8 +668,6 @@ namespace QiuQiu
                 return false;
             }
 
-            // every ball that took part waits out the merge cooldown, otherwise the two
-            // halves would merge straight back the moment they touch
             for (int i = 0; i < touched.Count; i++)
             {
                 merge.MarkSplit(touched[i]);
@@ -721,7 +678,6 @@ namespace QiuQiu
                 AudioManager.Instance.PlaySplit();
             }
 
-            // The camera starts pulling out on this frame, not after the pieces separate.
             if (SplitPerformed != null)
             {
                 SplitPerformed();
@@ -745,8 +701,6 @@ namespace QiuQiu
             return true;
         }
 
-        // called by a virus burst: the popped cell and every piece it created share the
-        // same merge wait, so the burst can not instantly re-merge into one ball
         public void MarkBurst(SizeController source, List<SizeController> created)
         {
             if (source != null)
@@ -773,10 +727,6 @@ namespace QiuQiu
             get { return maxBallCount; }
         }
 
-        /// <summary>
-        /// Fired the moment a split is accepted. The camera listens to this so it can start
-        /// zooming out on the same frame instead of waiting for the pieces to separate.
-        /// </summary>
         public event System.Action SplitPerformed;
 
         public SizeController SpawnBall(string ballName, Vector3 position, float mass, Sprite sprite, Color color)
@@ -792,8 +742,6 @@ namespace QiuQiu
 
             SizeController ball = go.GetComponent<SizeController>();
 
-            // a fresh cell gets its motion owner right away: the split animation starts in the
-            // same frame the ball is born, before the next FixedUpdate could hand it one
             PlayerCellMotion motion = go.AddComponent<PlayerCellMotion>();
             motion.Initialize(this);
             motion.ApplyMotionTuning(
@@ -805,7 +753,6 @@ namespace QiuQiu
             return ball;
         }
 
-        //just for PlayerRoot have or work (normal not work)
         public static PlayerController EnsureExists()
         {
             if (Active != null)
@@ -837,8 +784,6 @@ namespace QiuQiu
             return merge.IsMerging(ball);
         }
 
-        // Nearest cell this one is allowed to melt into. Two sub cells join each other, not only
-        // into the main ball, so the merge target is picked by distance among every ready cell.
         public bool TryFindMergePartner(SizeController ball, out SizeController partner)
         {
             partner = null;
@@ -886,7 +831,6 @@ namespace QiuQiu
             TrySpit();
         }
 
-        // what the player is asking for, after dead zone and clamping
         public Vector2 MoveInput
         {
             get
@@ -901,8 +845,6 @@ namespace QiuQiu
             get { return moveSpeed; }
         }
 
-        // The whole group moves at the main cell's speed: a sub cell must never slowly outrun
-        // the big one, which is what happened while subs used their own factor.
         public Vector2 GroupVelocity
         {
             get

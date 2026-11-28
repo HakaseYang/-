@@ -5,7 +5,7 @@ namespace QiuQiu
 
     public class ArenaBorder : MonoBehaviour
     {
-        private const int BorderSortingOrder = 200;   // above balls and food
+        private const int BorderSortingOrder = 200;
 
         private LineRenderer line;
 
@@ -24,7 +24,7 @@ namespace QiuQiu
         {
             line = gameObject.AddComponent<LineRenderer>();
             line.useWorldSpace = true;
-            line.loop = true;   //make 4 point connect auto
+            line.loop = true;
             line.positionCount = 4;
             line.sortingOrder = BorderSortingOrder;
 
@@ -56,7 +56,6 @@ namespace QiuQiu
             }
         }
 
-        // Clockwise from bottom-left; loop closes the rectangle.
         private void RebuildPositions(Vector2 center, Vector2 halfSize)
         {
             line.SetPosition(0, new Vector3(center.x - halfSize.x, center.y - halfSize.y, 0f));

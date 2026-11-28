@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 namespace QiuQiu
 {
-    // owns the balls the player controls and remembers which one is the main ball.
     public class PlayerRoster
     {
         private readonly List<SizeController> balls = new List<SizeController>(8);
@@ -45,8 +44,6 @@ namespace QiuQiu
 
                 balls.Add(ball);
 
-            // control stays on the ball you already had: a new piece never steals it,
-            // otherwise the camera/triangle would hop between cells every time one grows
             if (main == null)
             {
                 main = ball;
@@ -74,9 +71,6 @@ namespace QiuQiu
             main = null;
         }
 
-        // you drive the biggest cell, like Agar. The switch is not "pick the max every
-        // frame": two halves of a split are the same mass and would swap the control back
-        // and forth, so another cell has to be clearly heavier before it takes over.
         private const float TakeOverRatio = 1.02f;
 
         public void RefreshMain()
@@ -127,7 +121,6 @@ namespace QiuQiu
             return best;
         }
 
-        // remove destroyed balls
         public void PruneDead(System.Action<SizeController> onDropped)
         {
             for (int i = balls.Count - 1; i >= 0; i--)
@@ -137,7 +130,7 @@ namespace QiuQiu
                 {
                     continue;
                 }
-                    
+
                     balls.RemoveAt(i);
 
                 if (ball != null && onDropped != null)

@@ -2,20 +2,12 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // SizeController.TryEat decide who eat who.
-    // This component only decides WHEN the bite happens: a small overlap is not enough,
-    // the prey has to be covered by the bigger ball first (Agar.io style).
     [DisallowMultipleComponent]
     [RequireComponent(typeof(SizeController))]
     public class Eater : MonoBehaviour
     {
-        // How much of the prey has to be inside the eater before it is swallowed:
-        //   0.5 = the prey sits on the eater's edge, 0.97 = it is almost completely covered.
-        // Kept near 1 so a big ball really has to drive over the small one, not just touch it.
         [SerializeField, Range(0.5f, 1f)] private float swallowCoverage = 0.97f;
 
-        // GameManager owns the number the player actually tunes; every Eater (including the ones
-        // spawned later by splits and virus bursts) reads it here so they all agree.
         public static float DefaultSwallowCoverage = 0.97f;
 
         public float SwallowCoverage
@@ -37,8 +29,6 @@ namespace QiuQiu
             TrySwallow(other);
         }
 
-        // Enter only fires once, but the overlap keeps growing while the balls sit on each
-        // other, so the bite has to be re-checked every physics step.
         private void OnTriggerStay2D(Collider2D other)
         {
             TrySwallow(other);
@@ -65,9 +55,6 @@ namespace QiuQiu
             bool ownCell = self.Team == Team.Player && target.Team == Team.Player;
             if (ownCell)
             {
-                // Your own cells are food too: the moment one of them is really inside another the
-                // covered one is gone and the covering one grows. A piece that is still sliding out
-                // of its parent is skipped, otherwise a split would be swallowed in the same frame.
                 if (target.IsInvulnerable || target.IsEjecting)
                 {
                     return;
@@ -92,7 +79,6 @@ namespace QiuQiu
                 return;
             }
 
-            // only the player hears its own bite, ten AI eating must stay silent
             if (self.Team == Team.Player && AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlayEatEnemy();
@@ -109,9 +95,6 @@ namespace QiuQiu
             return Within(swallowCoverage, target);
         }
 
-        // How far the prey's covered part spans: c = (R - d + r) / 2r, so solving for the
-        // centre distance gives d = R + r - 2cr. coverage 0.5 -> d = R (half covered),
-        // coverage 1 -> d = R - r (fully swallowed).
         private bool Within(float coverage, SizeController target)
         {
             float allowed = self.Radius + target.Radius - 2f * coverage * target.Radius;

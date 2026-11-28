@@ -62,11 +62,9 @@ namespace QiuQiu
             if (force || totalSeconds != lastShownSeconds)
             {
                 lastShownSeconds = totalSeconds;
-                /// 60Minutes,%60Seconds
                 timerText.text = $"{totalSeconds / 60:00}:{totalSeconds % 60:00}";
             }
 
-            // the last warn seconds turn red and pulse 
             bool urgent = remaining <=  gameManager.WarnTime;
             if (urgent && pulseSpeed > 0.01f)
             {

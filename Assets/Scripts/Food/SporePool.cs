@@ -3,13 +3,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// Pool for mass a ball spat out.
-    ///
-    /// Spores used to be created and Destroy()ed every time the button was held, which meant a
-    /// long press produced a steady stream of garbage. They now keep their Rigidbody2D and are
-    /// reset on every reuse, so holding the button does not allocate anything after warm up.
-    /// </summary>
     public static class SporePool
     {
         private static readonly Stack<Edible> free = new Stack<Edible>(128);

@@ -5,14 +5,12 @@ using UnityEngine.UI;
 
 namespace QiuQiu
 {
-    // 右上角排行榜：照着 agar.io 那个网页版做的（半透明深色板 + 标题 + 名次）。
-    // 整块面板在运行时自己搭出来，场景里只要挂这个组件，不用连任何引用。
     public class LeaderboardPanel : MonoBehaviour
     {
         [Header("Layout")]
         [SerializeField] private int rowCount = 8;
         [SerializeField] private Vector2 panelSize = new Vector2(300f, 268f);
-        [SerializeField] private Vector2 margin = new Vector2(-16f, -230f);  // 相对右上角（避开右上角暂停键）
+        [SerializeField] private Vector2 margin = new Vector2(-16f, -230f);
         [SerializeField] private float refreshInterval = 0.25f;
 
         [Header("Colors")]
@@ -49,12 +47,10 @@ namespace QiuQiu
         {
             if (!(transform is RectTransform))
             {
-                // 需要一个 UI 父节点来定位，挂到 Canvas 下面就行
                 enabled = false;
                 return;
             }
 
-            // 面板自己单开一层，不动宿主物体的 RectTransform（宿主可能是 HUD 或 Canvas）
             GameObject panelObject = new GameObject("Leaderboard", typeof(RectTransform), typeof(Image));
             panelObject.transform.SetParent(transform, false);
 
@@ -85,7 +81,6 @@ namespace QiuQiu
             }
         }
 
-        // 从面板顶部往下 offset 像素放一行高 height 的文字
         private static void SetTopRow(RectTransform rect, float offset, float height)
         {
             rect.anchorMin = new Vector2(0f, 1f);
@@ -155,7 +150,6 @@ namespace QiuQiu
             }
             lastSignature = signature;
 
-            // 把玩家当成一条，和 AI 一起排
             int playerRank = 1;
             for (int i = 0; i < sorted.Count; i++)
             {

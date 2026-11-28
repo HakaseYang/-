@@ -6,7 +6,6 @@ namespace QiuQiu
     {
         private void Awake()
         {
-            // Touch screens have no hover, so the menu buttons skip the jelly on a phone build.
             UiJuiceBootstrap.JuiceScene(!Application.isMobilePlatform);
             Debug.Log("[boot] main menu ready on " + Application.platform + " | gfx=" + SystemInfo.graphicsDeviceType);
         }
@@ -50,7 +49,6 @@ namespace QiuQiu
 
             Debug.Log("[menu] quit");
 
-            //for test
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #else

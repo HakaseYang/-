@@ -2,11 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// Agar 风格的镜头：正常时按玩家总质量给一个适中的视野，分裂时主动向外拉远，
-    /// 合并回去再慢慢拉近。镜头中心用所有 cell 的整体包围盒中心，不再用质量加权，
-    /// 所以分裂后的质量分配不会把构图带偏。
-    /// </summary>
     public class CameraFollow : MonoBehaviour
     {
         [Header("Target")]
@@ -69,14 +64,12 @@ namespace QiuQiu
         private int lastBallCount;
         private bool subscribed;
 
-        // numbers the debug overlay prints, refreshed every LateUpdate
         private float dbgBaseSize;
         private float dbgMultiplier;
         private float dbgTargetSize;
         private int dbgCellCount;
         private Vector4 dbgBounds;
 
-        // Cached frame of every live cell, recomputed each frame.
         private struct GroupFrame
         {
             public bool valid;
@@ -104,8 +97,6 @@ namespace QiuQiu
             Unsubscribe();
         }
 
-        // The split event is pushed from PlayerController, so the camera can start
-        // pulling out on the same frame the split happens instead of a frame later.
         private void TrySubscribe()
         {
             if (subscribed || player == null) return;
@@ -124,8 +115,6 @@ namespace QiuQiu
         {
             lastSplitTime = Time.time;
 
-            // Predict where the pieces will be a moment from now. The pieces are born at the
-            // parent centre, so without this the camera would only react after they separate.
             GroupFrame frame = CaptureGroup();
             if (frame.valid)
             {
@@ -151,8 +140,6 @@ namespace QiuQiu
                 return;
             }
 
-            // Safety net: if the split event was missed (adapter order, scene reload),
-            // a rising cell count still counts as a split.
             if (frame.count > lastBallCount && lastBallCount > 0)
             {
                 OnSplitPerformed();
@@ -162,8 +149,6 @@ namespace QiuQiu
             float aspect = GetAspect();
             Vector2 center = frame.center;
 
-            // While the split is predicted, the group frame is inflated around the pre split centre,
-            // so the camera pulls out before the pieces actually spread.
             if (Time.time < splitPredictUntil)
             {
                 float inflate = Mathf.Max(0f, splitPredictReach);
@@ -230,7 +215,6 @@ namespace QiuQiu
 
         private float EstimateSplitReach(GroupFrame frame)
         {
-            // A split piece lands roughly one parent diameter away, so that is the reach worth predicting.
             float reach = 0f;
             var balls = player.Balls;
             if (balls != null)
@@ -247,15 +231,11 @@ namespace QiuQiu
 
         private float ComputeTargetSize(GroupFrame frame, Vector2 center, float aspect)
         {
-            // 1) Base view from the whole group mass. Splitting does not change total mass,
-            //    so the base view does not jump when the main ball halves.
             float baseSize = SizeForMass(frame.totalMass);
             dbgBaseSize = baseSize;
             dbgCellCount = frame.count;
             dbgBounds = new Vector4(frame.minX, frame.maxX, frame.minY, frame.maxY);
 
-            // 2) Split multiplier. It multiplies the base size, never the current size,
-            //    so chaining splits cannot stack the effect forever.
             float multiplier = 1f;
             bool splitActive = frame.count > 1 || Time.time - lastSplitTime < Mathf.Max(0f, splitBonusHold);
             if (splitActive && splitZoomMultiplier > 1f)
@@ -270,7 +250,6 @@ namespace QiuQiu
 
             float target = baseSize * multiplier;
 
-            // 3) Everything must stay visible: fit the whole group bounds.
             float halfWidth = Mathf.Max(center.x - frame.minX, frame.maxX - center.x) + Mathf.Max(0f, padding);
             float halfHeight = Mathf.Max(center.y - frame.minY, frame.maxY - center.y) + Mathf.Max(0f, padding);
             float boundsSize = Mathf.Max(halfHeight, halfWidth / Mathf.Max(0.0001f, aspect));
@@ -278,7 +257,6 @@ namespace QiuQiu
             target = Mathf.Max(target, boundsSize);
             target = Mathf.Max(target, minOrthographicSize);
 
-            // Clamp so a huge group cannot shrink the balls into nothing.
             if (maxOrthographicSize > 0f) target = Mathf.Min(target, maxOrthographicSize);
 
             dbgMultiplier = multiplier;
@@ -286,7 +264,6 @@ namespace QiuQiu
             return target;
         }
 
-        // Temporary read out, so the split zoom can be checked on screen instead of guessed.
         private void OnGUI()
         {
             if (!showDebug) return;
@@ -317,13 +294,11 @@ namespace QiuQiu
         {
             Vector3 target = new Vector3(center.x, center.y, 0f) + followOffset;
 
-            // Keep the view inside the arena instead of teleporting the camera when the group is far.
             Vector2 clamped = ClampToArena(center, targetSize, aspect);
             target = new Vector3(clamped.x, clamped.y, 0f) + followOffset;
 
             float smooth = Mathf.Max(0.0001f, positionSmoothTime * GamePacing.CameraSmooth);
 
-            // Split is the one moment where the group centre jumps, follow it a bit quicker.
             if (Time.time - lastSplitTime < Mathf.Max(0f, splitBonusHold))
             {
                 smooth = Mathf.Min(smooth, Mathf.Max(0.05f, splitZoomInTime));
@@ -342,9 +317,6 @@ namespace QiuQiu
             float halfHeight = viewSize;
             float halfWidth = viewSize * Mathf.Max(0.0001f, aspect);
 
-            // Only clamp an axis when the arena is wider than the view on that axis,
-            // otherwise the clamp would fight the follow and cause jitter.
-            // edgePadding keeps a strip of "outside" on screen so the wall itself stays visible.
             if (half.x * 2f > halfWidth * 2f)
             {
                 float limit = Mathf.Max(0f, half.x - halfWidth + edgePadding);

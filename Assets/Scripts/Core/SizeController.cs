@@ -14,15 +14,13 @@ namespace QiuQiu
         [SerializeField] private float minMass = 1f;
         [SerializeField] private float maxMass = 100000f;
 
-        // Agar.io style: Radius = Scale * sqrt(Mass). Only this one number decides how fat
-        // a ball looks, so changing it never breaks the mass -> radius relation.
         [Header("Mass To Radius")]
         [SerializeField] private float radiusAtReferenceMass = 0.75f;
         [Tooltip("<= 0: derive from radiusAtReferenceMass. > 0: use directly as Radius = scale * sqrt(Mass)")]
         [SerializeField] private float radiusScale = 0f;
 
         [Header("Eating Ball Threshold")]
-        [SerializeField, Range(1f, 3f)] private float eatMassRatio = 1.25f;   //Agar uses 1.25
+        [SerializeField, Range(1f, 3f)] private float eatMassRatio = 1.25f;
 
         [Header("Natural Mass Decay")]
         [SerializeField] private bool decayEnabled = true;
@@ -40,20 +38,15 @@ namespace QiuQiu
         [SerializeField] private Team team = Team.Player;
 
         [Header("Move Speed")]
-        [SerializeField] private float speedReferenceMass = 60f;    //Start game          
-        [SerializeField, Range(0.1f, 1f)] private float minSpeedFactor = 0.4f; //Move Speed limit
+        [SerializeField] private float speedReferenceMass = 60f;
+        [SerializeField, Range(0.1f, 1f)] private float minSpeedFactor = 0.4f;
 
-        public event Action<SizeController, SizeController> Eaten; //Eaten Ball,Who eat it
+        public event Action<SizeController, SizeController> Eaten;
 
-        // All Live Ball
         private static readonly List<SizeController> registry = new List<SizeController>(64);
 
-        //Read-only, accessible via an index
         public static IReadOnlyList<SizeController> Registry { get { return registry; } }
 
-        // Draw order follows the radius: a bigger ball is painted over a smaller one, so
-        // "who covers whom" on screen is exactly who can eat whom. Virus uses the same
-        // rule, which is why a big ball covers a virus and a small ball hides behind it.
         public const int SortingBase = 10;
         public const float SortingPerUnitRadius = 8f;
 
@@ -64,11 +57,11 @@ namespace QiuQiu
 
         private Rigidbody2D rb;
         private SpriteRenderer spriteRenderer;
-        private float invulnerableUntil;   // Invincible time （0 = not protect）
+        private float invulnerableUntil;
 
         private void OnEnable()
         {
-            if (!registry.Contains(this)) //check registry have? this
+            if (!registry.Contains(this))
             {
                 registry.Add(this);
             }
@@ -86,9 +79,6 @@ namespace QiuQiu
             ApplySizeNow();
         }
 
-        // Balls never push each other here: eating needs one ball to slide over the other, and
-        // a solid collider stops exactly that. Factory made balls only get a trigger, but a ball
-        // placed by hand in the scene can still carry a solid one, so it is removed on spawn.
         private void StripSolidColliders()
         {
             Collider2D[] colliders = GetComponents<Collider2D>();
@@ -104,21 +94,15 @@ namespace QiuQiu
         public float Mass { get { return mass; } }
         public Team Team { get { return team; } }
 
-        // Logical owner id. Every cell of one AI carries the same id, so a virus burst that
-        // splits one bot into sixteen cells still counts as ONE participant.
-        // -1 = not part of the bot roster (the human player).
         public int BotId { get; set; } = -1;
 
-        // Identity of the group this cell belongs to. Every cell of one player, or of one
-        // bot, shares the same value, so 16 split pieces are still "the same owner".
-        // Used to stop a ball from eating the mass it just spat out.
         public int OwnerId
         {
             get
             {
                 if (team == Team.Player)
                 {
-                    return 0;   // there is only one human player
+                    return 0;
                 }
                 return BotId >= 0 ? BotId : -1 - GetInstanceID();
             }
@@ -127,18 +111,14 @@ namespace QiuQiu
         public bool IsDead { get; private set; }
         public bool IsInvulnerable { get { return Time.time < invulnerableUntil; } }
 
-        // set while a fresh split piece is still sliding out of its parent: other systems
-        // must leave its position and scale alone until the animation finishes
         public bool IsEjecting { get; set; }
 
-        // while true ApplySizeNow still updates radius/collider/sorting, but not the visual
-        // scale, so an animation can own the transform scale
         public bool SuppressVisual { get; set; }
 
         public float Radius
         {
             get
-            {   //Radius = RadiusScale * sqrt(Mass) : mass doubles -> radius x1.41, not x2
+            {
                 return RadiusScale * Mathf.Sqrt(Mathf.Max(mass, 0.0001f));
             }
         }
@@ -174,7 +154,6 @@ namespace QiuQiu
             ApplySizeNow();
         }
 
-        // spit ball
         public bool TryConsumeMass(float amount, float lowerBound = 1f)
         {
             if (IsDead || amount <= 0f)
@@ -213,7 +192,6 @@ namespace QiuQiu
             ApplySizeNow();
         }
 
-        // Mass> eatMassRatio ，not in IsInvulnerable
         public bool CanEat(SizeController other)
         {
             if (other == null || ReferenceEquals(other, this))
@@ -243,16 +221,13 @@ namespace QiuQiu
 
             float gain = other.mass;
             float share = (team == Team.Enemy && other.team == Team.Enemy)
-                ? GameSettings.AiVsAiMassShare          // AI eating AI  only half
-                : 1f;                                   //AI eat Player nurmal
+                ? GameSettings.AiVsAiMassShare
+                : 1f;
             other.Die(this);
             AddMassFromEat(gain, share);
             return true;
         }
 
-        // Own cells are allowed to swallow each other with no size requirement at all: two equal
-        // halves merge as soon as one of them is really inside the other. Only one of the pair may
-        // do it, otherwise both would eat each other in the same frame and both would vanish.
         public bool TryEatOwn(SizeController other)
         {
             if (other == null || ReferenceEquals(other, this))
@@ -270,7 +245,6 @@ namespace QiuQiu
                 return false;
             }
 
-            // equal halves: the lower id wins, so exactly one of the two does the eating
             if (mass == other.mass && GetInstanceID() < other.GetInstanceID())
             {
                 return false;
@@ -282,10 +256,8 @@ namespace QiuQiu
             return true;
         }
 
-        // set by GameManager : how big an AI may grow,float.MaxValue just work for sure AI can grow
-        public static float AiMassCap = float.MaxValue; //Sentinel Value
+        public static float AiMassCap = float.MaxValue;
 
-        // for eat,Multiply by difficulty
         public void AddMassFromEat(float rawAmount)
         {
             AddMassFromEat(rawAmount, 1f);
@@ -298,13 +270,13 @@ namespace QiuQiu
                 return;
             }
 
-            float multiplier = team == Team.Player  //Multiply
-                ? GameSettings.PlayerEatMultiplier  //is
-                : GameSettings.AiEatMultiplier;     //not
+            float multiplier = team == Team.Player
+                ? GameSettings.PlayerEatMultiplier
+                : GameSettings.AiEatMultiplier;
 
             float gain = rawAmount * multiplier * Mathf.Max(0f, share);
 
-            if (team == Team.Enemy && mass + gain > AiMassCap)   // an AI stops growing at the cap
+            if (team == Team.Enemy && mass + gain > AiMassCap)
             {
                 gain = Mathf.Max(0f, AiMassCap - mass);
             }
@@ -324,9 +296,6 @@ namespace QiuQiu
             }
         }
 
-        // ---- natural mass decay ----
-        // Agar.io style: once a cell passes the threshold it slowly loses mass, so nobody
-        // can sit at the top forever. Exponential, so it never depends on frame rate.
         private void Update()
         {
             TickDecay(Time.deltaTime);
@@ -354,7 +323,7 @@ namespace QiuQiu
 
             if (next < mass)
             {
-                SetMass(next);   // SetMass -> ApplySizeNow, so radius follows the new mass
+                SetMass(next);
             }
         }
 
@@ -366,7 +335,7 @@ namespace QiuQiu
             }
 
             IsDead = true;
-            Eaten?.Invoke(this, killer); //coll action
+            Eaten?.Invoke(this, killer);
             Destroy(gameObject);
         }
 
@@ -378,7 +347,6 @@ namespace QiuQiu
                 transform.localScale = new Vector3(scale, scale, 1f);
             }
 
-            // same formula as Virus, so ball-vs-virus order is decided by real size too
             if (spriteRenderer == null)
             {
                 spriteRenderer = GetComponent<SpriteRenderer>();

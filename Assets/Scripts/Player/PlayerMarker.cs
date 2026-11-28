@@ -2,16 +2,12 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // The arrow that floats just outside every ball the player owns.
-    // There is no art for it in the project, so the triangle is built from code once and
-    // reused. It is NOT parented to the ball: the ball scales with mass, and a child would
-    // get squashed along with it.
     public class PlayerMarker : MonoBehaviour
     {
         [Header("Shape")]
-        [SerializeField] private float sizeFactor = 0.45f;   // arrow size relative to the ball radius
-        [SerializeField] private float edgeFactor = 1.12f;    // distance from the centre, >1 = outside the ball
-        [SerializeField] private float gap = 0.35f;          // world units of empty space between ball and arrow
+        [SerializeField] private float sizeFactor = 0.45f;
+        [SerializeField] private float edgeFactor = 1.12f;
+        [SerializeField] private float gap = 0.35f;
         [SerializeField] private Color color = new Color(1f, 1f, 1f, 0.95f);
 
         private SpriteRenderer sprite;
@@ -22,7 +18,6 @@ namespace QiuQiu
             EnsureSprite();
         }
 
-        // called every frame by PlayerController with one of the player's balls
         public void Follow(SizeController ball, Vector2 direction, float extraGap)
         {
             EnsureSprite();
@@ -47,8 +42,6 @@ namespace QiuQiu
             float radius = ball.Radius;
             float size = Mathf.Max(0.3f, radius * sizeFactor);
 
-            // the arrow head sits outside the ball and keeps a real gap, so the ball edge is
-            // never covered by its own arrow however big the ball gets
             float distance = radius * edgeFactor + gap + extraGap;
             Vector3 offset = (Vector3)(lastDirection * distance);
 
@@ -57,7 +50,6 @@ namespace QiuQiu
 
             transform.localScale = new Vector3(size, size, 1f);
 
-            // always above the ball it belongs to, and above anything it is covering
             sprite.sortingOrder = SizeController.SortingOrderForRadius(radius) + 200;
         }
 
@@ -82,15 +74,14 @@ namespace QiuQiu
             sprite.color = color;
         }
 
-        // white triangle pointing along +X, 2x supersampled so the edge is not jagged
         private static Sprite BuildTriangle(int resolution)
         {
             var texture = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
             texture.filterMode = FilterMode.Bilinear;
 
-            Vector2 a = new Vector2(resolution * 0.90f, resolution * 0.5f);   // tip, right
-            Vector2 b = new Vector2(resolution * 0.22f, resolution * 0.10f);  // bottom left
-            Vector2 c = new Vector2(resolution * 0.22f, resolution * 0.90f);  // top left
+            Vector2 a = new Vector2(resolution * 0.90f, resolution * 0.5f);
+            Vector2 b = new Vector2(resolution * 0.22f, resolution * 0.10f);
+            Vector2 c = new Vector2(resolution * 0.22f, resolution * 0.90f);
 
             var pixels = new Color32[resolution * resolution];
 

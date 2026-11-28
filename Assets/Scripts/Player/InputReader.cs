@@ -3,15 +3,8 @@ using UnityEngine.InputSystem;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// Reads the three controls the game actually uses straight from the devices: a stick
-    /// direction, split and spit. No Input Action asset, no callbacks, no asset kept in sync
-    /// with the scene - one small class instead of twelve bindings.
-    /// </summary>
     public class InputReader
     {
-        // the on screen spit button writes here. Static because that button lives in the UI
-        // and holds no reference to this reader.
         private static bool mobileSpitHeld;
         private static bool mobileSplitTap;
 
@@ -28,13 +21,11 @@ namespace QiuQiu
 
         public void Disable()
         {
-            // a paused or disabled player must stop spitting, whatever the button says
             mobileSpitHeld = false;
             mobileSplitTap = false;
             splitWasDown = false;
         }
 
-        /// <summary>WASD, arrow keys or the gamepad stick, clamped to length 1.</summary>
         public Vector2 ReadMove()
         {
             Vector2 value = Vector2.zero;
@@ -61,7 +52,6 @@ namespace QiuQiu
             return Vector2.ClampMagnitude(value, 1f);
         }
 
-        /// <summary>True only on the frame the split key goes down.</summary>
         public bool SplitPressedThisFrame()
         {
             if (mobileSplitTap)
@@ -77,14 +67,11 @@ namespace QiuQiu
             return pressed;
         }
 
-        // The phone button has no key, so a tap is queued here and consumed once.
         public static void RequestSplitTap()
         {
             mobileSplitTap = true;
         }
 
-        /// <summary>Spit repeats while held, so keyboard, gamepad and the phone button all feed
-        /// the same TrySpit() call from Update().</summary>
         public bool SpitHeld
         {
             get

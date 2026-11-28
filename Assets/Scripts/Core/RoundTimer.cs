@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // countdown in unscaled time, so a frozen game still runs the clock out
     public class RoundTimer
     {
         private float remaining;

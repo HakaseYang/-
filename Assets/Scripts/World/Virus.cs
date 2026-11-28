@@ -3,12 +3,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Agar.io virus.
-    //  - a ball smaller than the virus can sit next to it (and hide behind it, it is drawn
-    //    on top of the balls), nothing happens;
-    //  - a ball bigger than the virus that covers it bursts into many cells;
-    //  - spores fired into it are stored, and once enough are stored the virus shoots a
-    //    new virus in the direction the last spore came from.
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Rigidbody2D), typeof(CircleCollider2D))]
     public class Virus : MonoBehaviour
@@ -63,7 +57,6 @@ namespace QiuQiu
             body.gravityScale = 0f;
             body.freezeRotation = true;
             body.interpolation = RigidbodyInterpolation2D.Interpolate;
-            // low damping so a fired virus actually travels, it still comes to rest on its own
             body.linearDamping = 0.9f;
         }
 
@@ -92,8 +85,6 @@ namespace QiuQiu
             float size = Radius * 2f;
             transform.localScale = new Vector3(size, size, 1f);
 
-            // same rule as the balls: drawn by size, so a big ball covers the virus and a
-            // small ball is covered by it (the virus is a hiding spot, not a fixed layer)
             if (spriteRenderer == null)
             {
                 spriteRenderer = GetComponent<SpriteRenderer>();
@@ -111,7 +102,6 @@ namespace QiuQiu
                 body.linearVelocity = Vector2.zero;
             }
 
-            // same arena rule as the balls: the map has no wall colliders
             if (ArenaManager.Instance != null && body != null)
             {
                 ArenaManager.Instance.Constrain(body, Radius);
@@ -141,13 +131,11 @@ namespace QiuQiu
                 return;
             }
 
-            // only a ball strictly bigger than the virus can pop it
             if (ball.Mass <= mass)
             {
-                return;   // small ball: the virus is cover, not a threat
+                return;
             }
 
-            // and it has to be covered, not just touched (same rule as eating)
             Vector2 offset = (Vector2)transform.position - (Vector2)ball.transform.position;
             if (offset.sqrMagnitude > ball.Radius * ball.Radius)
             {
@@ -158,15 +146,11 @@ namespace QiuQiu
             Burst(ball);
         }
 
-        // One burst event, not a copy of the normal split: the cell is refilled up to the
-        // player's cell limit, which is what Agar.io's virusSplit does.
         private void Burst(SizeController ball)
         {
             bool isPlayer = ball.Team == Team.Player;
             PlayerController player = isPlayer ? PlayerController.Active : null;
 
-            // The limit counts the cells of the OWNER. An AI with 10 cells must not get another
-            // full 16 just because every one of its cells carries its own AIController.
             int owned = isPlayer && player != null
                 ? player.BallCount
                 : ScoreBoard.CellsOfBot(ball.Team, ball.BotId);
@@ -175,7 +159,6 @@ namespace QiuQiu
             int room = Mathf.Max(1, maxBalls - (owned - 1));
             int pieces = Mathf.Clamp(burstPieces, 1, room);
 
-            // the virus gives no extra mass, the cell only gets sliced up
             float total = ball.Mass;
             float pieceMass = total / pieces;
             if (pieceMass <= 1f)
@@ -185,7 +168,6 @@ namespace QiuQiu
 
             if (pieces <= 1)
             {
-                // already at the cell limit (or too small to cut): the virus is just eaten
                 ball.AddMass(mass);
                 Debug.Log($"[virus] ate the virus at the cell limit, +{mass:F0} mass");
                 Destroy(gameObject);
@@ -196,7 +178,6 @@ namespace QiuQiu
             Sprite sprite = shell != null ? shell.sprite : null;
             Color color = shell != null ? shell.color : Color.white;
 
-            // equal pieces, so one radius describes all of them
             ball.SetMass(pieceMass);
             float pieceRadius = ball.Radius;
             Vector2 centre = ball.transform.position;
@@ -230,12 +211,9 @@ namespace QiuQiu
 
             Debug.Log($"[virus] burst {total:F0} into {pieces} cells, {spots.Count} launched");
 
-            // the virus is consumed by the burst
             Destroy(gameObject);
         }
 
-        // The burst owns the piece for burstCoastDuration: normal following must not pull it
-        // straight back, and an AI must not path towards food in the middle of the explosion.
         private void LaunchBurstPiece(SizeController piece, Vector2 direction)
         {
             if (piece == null)
@@ -266,8 +244,6 @@ namespace QiuQiu
             }
         }
 
-        // Two rings instead of one. On a single ring 15 equal circles always overlap, whatever
-        // the gap is: the arc between neighbours is shorter than a diameter.
         private List<Vector2> BuildBurstLayout(Vector2 centre, float pieceRadius, int count)
         {
             List<Vector2> spots = new List<Vector2>(Mathf.Max(0, count));
@@ -296,7 +272,6 @@ namespace QiuQiu
                 spots.Add(ClampInside(centre + offset, pieceRadius));
             }
 
-            // relax: clamping at the arena edge can squeeze two cells together again
             for (int pass = 0; pass < 3; pass++)
             {
                 for (int a = 0; a < spots.Count; a++)
@@ -337,19 +312,16 @@ namespace QiuQiu
 
         private static SizeController SpawnAiPiece(Vector3 position, float pieceMass, Sprite sprite, Color color, string ownerName, int botId)
         {
-            // a piece of a piece must not read "AI_03_Burst_Burst"
             string pieceName = ownerName.EndsWith("_Burst") ? ownerName : ownerName + "_Burst";
             GameObject go = BallFactory.CreateBall(pieceName, position, pieceMass, sprite, color, Team.Enemy);
             AIController ai = go.AddComponent<AIController>();
             ai.ApplyRandomProfile(Random.Range(0.9f, 1.25f), Random.Range(0.85f, 1.15f));
 
-            // the piece belongs to the bot that burst, it is not a brand new opponent
             SizeController size = go.GetComponent<SizeController>();
             size.BotId = botId;
             return size;
         }
 
-        // a spore that flies into the virus is swallowed by it
         public void Absorb(Edible spore)
         {
             if (spore == null)
@@ -393,7 +365,7 @@ namespace QiuQiu
             Virus spawned = VirusSpawner.Instance.SpawnFrom(this, direction, ejectSpeed);
             if (spawned == null)
             {
-                return;   // already at the virus cap, the meal is simply wasted
+                return;
             }
 
             Debug.Log("[virus] fired a new virus");

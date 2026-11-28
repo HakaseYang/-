@@ -4,11 +4,6 @@ using UnityEngine.UI;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// Small spring used by every juicy widget. No coroutines, no allocations: one float pair
-    /// per animated value, integrated each frame. Overshoot comes from the damping, that is
-    /// what makes it feel like jelly instead of a linear lerp.
-    /// </summary>
     internal static class JuiceSpring
     {
         public static void Step(ref float value, ref float velocity, float target, float stiffness, float damping, float dt)
@@ -19,11 +14,6 @@ namespace QiuQiu
         }
     }
 
-    /// <summary>
-    /// Hover / press jelly for a button. Long buttons tilt less (a huge rotation on a wide
-    /// button looks broken), small buttons get the full tilt - same idea as scaling the
-    /// animation strength by the rect size.
-    /// </summary>
     [DisallowMultipleComponent]
     public class JuicyButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
     {
@@ -113,10 +103,6 @@ namespace QiuQiu
         }
     }
 
-    /// <summary>
-    /// Pops when the label changes (score, mass, timer). The punch is a scale spring plus a
-    /// short colour flash, so a number "lands" instead of silently swapping text.
-    /// </summary>
     [DisallowMultipleComponent]
     public class JuicyNumber : MonoBehaviour
     {
@@ -168,10 +154,6 @@ namespace QiuQiu
         }
     }
 
-    /// <summary>
-    /// Staggers the children when the panel is enabled: each one springs in a little later
-    /// than the previous, so a menu opens as a wave instead of all at once.
-    /// </summary>
     [DisallowMultipleComponent]
     public class JuicyGroup : MonoBehaviour
     {
@@ -212,8 +194,6 @@ namespace QiuQiu
                     continue;
                 }
                 JuiceSpring.Step(ref values[i], ref velocities[i], 1f, stiffness, damping, dt);
-                // Slide + fade instead of scaling: a button on the same object already owns its
-                // own scale (JuicyButton), and two systems writing localScale fight each other.
                 kids[i].anchoredPosition = homes[i] + new Vector2(-slideIn * (1f - values[i]), 0f);
                 if (groups[i] != null)
                 {
@@ -256,11 +236,6 @@ namespace QiuQiu
         }
     }
 
-    /// <summary>
-    /// Attaches the jelly to a whole canvas at runtime: every button gets JuicyButton, and the
-    /// few value labels (mass, rank, timer) get JuicyNumber. One component per canvas instead of
-    /// hand-wiring every widget - move the canvas, the juice comes along.
-    /// </summary>
     [DisallowMultipleComponent]
     public class UiJuiceBootstrap : MonoBehaviour
     {
@@ -274,12 +249,6 @@ namespace QiuQiu
             }
         }
 
-        /// <summary>
-        /// Adds the jelly to every button and to the few value labels of the loaded scene.
-        /// Called from the scene controllers so nothing has to be wired by hand in the editor.
-        /// Pass false for buttons on a touch-only build: there is no pointer to hover with, and
-        /// the pop on press is not worth the extra components on a menu.
-        /// </summary>
         public static void JuiceScene(bool juiceButtonsInThisScene = true)
         {
             if (juiceButtonsInThisScene)

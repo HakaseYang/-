@@ -2,29 +2,16 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Which movement owner currently drives one cell. Only one state runs at a time, and only
-    // the state that is running may touch the Rigidbody.
     public enum CellMotionState
     {
-        Normal,         // the main cell: takes the player input
-        SplitLaunching, // still sliding out of the parent, driven by this component only
-        SplitCoasting,  // flew out, now living on the launch impulse while it fades
-        Following,      // sub cell: same speed as the group, gently nudged beside the big cell
-        Merging,        // being swallowed by another cell of the same player
-        Disabled        // dead or handed over, nothing runs
+        Normal,
+        SplitLaunching,
+        SplitCoasting,
+        Following,
+        Merging,
+        Disabled
     }
 
-    // The single owner of one player cell's motion.
-    //
-    // Before this script there were three owners fighting over the same Rigidbody2D:
-    // SplitEject wrote MovePosition while PlayerSubBall wrote linearVelocity and
-    // PlayerMerge.PushApart wrote body.position on top of both. Every one of them needed an
-    // "if (someone else is running) return" guard, and the guards still left one frame of
-    // mixed control at every hand-over.
-    //
-    // Now: PlayerController hands in the input, PlayerActions creates the cell, PlayerMerge
-    // only decides who may merge. All of them talk to this component; none of them writes the
-    // body directly.
     [DisallowMultipleComponent]
     public class PlayerCellMotion : MonoBehaviour
     {
@@ -72,7 +59,6 @@ namespace QiuQiu
 
         private CellMotionState state = CellMotionState.Disabled;
 
-        // split slide
         private Vector2 splitFrom;
         private Vector2 splitTo;
         private Vector2 splitDirection = Vector2.right;
@@ -81,18 +67,14 @@ namespace QiuQiu
         private float splitEndRadius;
         private float splitImpulse;
 
-        // split coast: the piece keeps flying on its impulse, which fades out on its own
         private float coastElapsed;
         private float coastDuration = 0.45f;
 
-        // merge pull
         private SizeController mergeKeeper;
         private float mergeEase = 2f;
         private System.Action mergeFinished;
         private int mergeStartOrder;
 
-        // How much the player's stick still steers a cell that is being swallowed. 0 = the cell
-        // marches straight into the body, 1 = the stick moves it as strongly as the crawl does.
         private const float mergeSteer = 0.85f;
 
         private float mergeCrawlSpeed = 0.7f;
@@ -100,7 +82,6 @@ namespace QiuQiu
 
         public CellMotionState State { get { return state; } }
 
-        // true while an animation owns the body: nothing else may steer this cell
         public bool IsBusy
         {
             get
@@ -129,8 +110,6 @@ namespace QiuQiu
             owner = controller;
         }
 
-        // The component is added at runtime, so the numbers live on PlayerController and are
-        // pushed down here. Called on creation and whenever ApplyTuning() runs, never per frame.
         public void ApplyMotionTuning(
             float accel, float decel, float speedLimit,
             float followAccel, float strength, float damping, float maxDrift,
@@ -151,20 +130,16 @@ namespace QiuQiu
             mergeEatDepth = Mathf.Clamp(eatDepth, 0.05f, 1f);
         }
 
-        // ---- state changes -------------------------------------------------------------
 
-        // Called from the player layer: this cell is a sub cell (or the main one).
         public void SetFollowing(bool isMain)
         {
             if (IsBusy)
             {
-                return;   // an animation owns it right now
+                return;
             }
             state = isMain ? CellMotionState.Normal : CellMotionState.Following;
         }
 
-        // origin/target are world positions: the piece is born inside the parent and slides out
-        // to the split distance. impulse is the extra speed it carries away afterwards.
         public void BeginSplit(Vector2 origin, Vector2 target, float duration, float impulse, float coastSeconds)
         {
             CacheParts();
@@ -185,9 +160,9 @@ namespace QiuQiu
 
             if (self != null)
             {
-                self.SuppressVisual = true;              // this component owns the scale now
+                self.SuppressVisual = true;
                 self.IsEjecting = true;
-                self.SetInvulnerable(splitDuration + coastDuration + 0.1f);   // nothing eats it mid-flight
+                self.SetInvulnerable(splitDuration + coastDuration + 0.1f);
             }
 
             if (rb != null)
@@ -200,9 +175,6 @@ namespace QiuQiu
             ApplyRadius(splitEndRadius * splitStartScale);
         }
 
-        // A virus burst has no slide-out: the virus already placed the cell on its ring. It only
-        // gets an outward push, and normal following is locked out until that push has faded,
-        // otherwise the home spring would swallow the whole explosion.
         public void BeginVirusBurst(Vector2 direction, float speed, float coastSeconds)
         {
             CacheParts();
@@ -233,9 +205,6 @@ namespace QiuQiu
 
             state = CellMotionState.Merging;
 
-            // Colliders stay ON. A cell that is busy being swallowed is still a normal target for
-            // enemies: if a bigger ball covers it first, this cell dies and the merge is dropped.
-            // Its own keeper cannot eat it (Eater ignores player vs player).
 
             if (rb != null)
             {
@@ -243,8 +212,6 @@ namespace QiuQiu
                 rb.linearVelocity = Vector2.zero;
             }
 
-            // Draw the melting cell on top of the keeper: behind it, the shrink would be hidden
-            // and the merge would look like a snap again.
             if (shell != null)
             {
                 mergeStartOrder = shell.sortingOrder;
@@ -256,7 +223,6 @@ namespace QiuQiu
             }
         }
 
-        // the keeper died mid-pull: give the cell back its body and its normal driving
         public void AbortMerge()
         {
             if (state != CellMotionState.Merging)
@@ -293,7 +259,6 @@ namespace QiuQiu
             return state == CellMotionState.Merging && mergeKeeper == keeper;
         }
 
-        // ---- the only place a player cell is moved -------------------------------------
 
         private void FixedUpdate()
         {
@@ -345,7 +310,6 @@ namespace QiuQiu
 
             SizeController leader = owner.MainBall;
 
-            // no big cell (it was just eaten): behave like a normal cell this frame
             if (leader == null || leader == self)
             {
                 Steer(owner.MoveInput * (owner.MoveSpeed * self.MoveSpeedFactor), followAcceleration, followAcceleration);
@@ -358,13 +322,9 @@ namespace QiuQiu
             float restDistance = leader.Radius + self.Radius;
             Vector2 direction = distance > 0.0001f ? offset / distance : Vector2.right;
 
-            // Heavy feels heavy: a small cell answers its own input faster than a big one, which is
-            // also what lets it catch up and slide around the leader instead of trailing behind.
             float weight = Mathf.Clamp(Mathf.Pow(60f / Mathf.Max(1f, self.Mass), 0.2f), 0.4f, 1.6f);
             float response = followAcceleration * weight;
 
-            // A sub cell is NOT glued to the big one. It only gets pushed when the bodies overlap,
-            // and only gets pulled when the leash is stretched to its max.
             Vector2 closing = Vector2.zero;
 
             if (distance < restDistance)
@@ -372,8 +332,6 @@ namespace QiuQiu
                 float overlap = restDistance - distance;
                 Vector2 push = direction * Mathf.Min(overlap * homeStrength, maxDriftSpeed * weight);
 
-                // part of the push is sideways: that makes a slower big cell squeeze the small one
-                // out around its side rather than wedging it at the back
                 Vector2 tangent = new Vector2(-direction.y, direction.x);
                 float side = Vector2.Dot(rb != null ? rb.linearVelocity : Vector2.zero, tangent) >= 0f ? 1f : -1f;
 
@@ -385,17 +343,11 @@ namespace QiuQiu
                 closing = -direction * Mathf.Min(lag * homeStrength * 0.5f, maxDriftSpeed * 0.6f);
             }
 
-            // The trip home does not wait for the cooldown. A cell that flew out on a split starts
-            // drifting back the moment the launch impulse is spent, so it never parks at the far
-            // end and then snaps back. Only the swallow itself waits for the cooldown.
             if (distance > restDistance * 1.02f)
             {
                 closing += -direction * mergeCrawlSpeed;
             }
 
-            // Once the cooldown is over a cell aims at the nearest cell it may melt into. That is
-            // not always the main ball: two sub cells are allowed to join each other, so the target
-            // is whichever partner is closest and ready.
             if (owner.CanMerge(self))
             {
                 SizeController partner;
@@ -410,7 +362,6 @@ namespace QiuQiu
                 }
             }
 
-            // A small cell moves at its own (faster) speed; the bigger one uses the group speed.
             Vector2 ownVelocity = owner.MoveInput * (owner.MoveSpeed * self.MoveSpeedFactor);
             Vector2 groupVelocity = owner.GroupVelocity;
             Vector2 baseVelocity = ownVelocity.sqrMagnitude >= groupVelocity.sqrMagnitude ? ownVelocity : groupVelocity;
@@ -418,8 +369,6 @@ namespace QiuQiu
             Steer(baseVelocity + closing, response, response);
         }
 
-        // One steering rule for every state that is not an animation: approach the target
-        // velocity at a fixed rate, never snap unless the rate is zero.
         private void Steer(Vector2 targetVelocity, float pushRate, float idleRate)
         {
             if (rb == null)
@@ -430,16 +379,12 @@ namespace QiuQiu
             bool pushing = targetVelocity.sqrMagnitude > 0.0001f;
             if (!pushing)
             {
-                // No input: a heavy ball keeps gliding. There is no friction here on purpose -
-                // the player stops it by pushing the other way.
                 Constrain();
                 return;
             }
 
             float rate = pushRate;
 
-            // Reversing a heavy ball is not instant: when the target points back against the way we
-            // are already moving, answer with reverseRate instead of the full push rate.
             Vector2 current = rb.linearVelocity;
             if (pushing && current.sqrMagnitude > 0.0001f && reverseRate > 0f)
             {
@@ -468,7 +413,7 @@ namespace QiuQiu
         {
             splitElapsed += Time.fixedDeltaTime;
             float t = Mathf.Clamp01(splitElapsed / splitDuration);
-            float eased = t * t * (3f - 2f * t);   // smoothstep, unchanged for now
+            float eased = t * t * (3f - 2f * t);
 
             if (rb != null)
             {
@@ -482,8 +427,6 @@ namespace QiuQiu
                 return;
             }
 
-            // hand over to the coast: the piece keeps flying outwards on its own impulse,
-            // the group speed is added on top so it never lags behind the player either
             if (rb != null)
             {
                 rb.bodyType = RigidbodyType2D.Dynamic;
@@ -495,8 +438,6 @@ namespace QiuQiu
             coastElapsed = 0f;
         }
 
-        // The launch impulse, fading out. Nothing may pull the piece back while this runs,
-        // otherwise the home spring would eat the whole bounce.
         private void TickCoast()
         {
             coastElapsed += Time.fixedDeltaTime;
@@ -504,15 +445,11 @@ namespace QiuQiu
 
             Vector2 groupVelocity = owner != null ? owner.GroupVelocity : Vector2.zero;
 
-            // Fly out, slow down, turn around and start coming back - one continuous motion, no
-            // stop in between. The outward part fades exactly as fast as the inward part grows.
-            float fade = Mathf.Exp(-3.5f * t);          // 1 -> 0.03
+            float fade = Mathf.Exp(-3.5f * t);
             float outward = splitImpulse * fade;
             float inward = mergeCrawlSpeed * (1f - fade);
             Vector2 velocity = groupVelocity + splitDirection * (outward - inward);
 
-            // A split launch is meant to be faster than normal movement, so the ordinary speed
-            // cap must not eat the impulse. Coasting speed is allowed up to the impulse itself.
             float limit = Mathf.Max(maxSpeedHardLimit, splitImpulse);
             if (limit > 0f && velocity.sqrMagnitude > limit * limit)
             {
@@ -556,23 +493,18 @@ namespace QiuQiu
             float contact = mergeKeeper.Radius + self.Radius;
             Vector2 direction = distance > 0.0001f ? offset / distance : Vector2.zero;
 
-            // Shoved away by the player: give up, keep every gram of mass.
             if (distance > contact * 1.15f)
             {
                 AbortMerge();
                 return;
             }
 
-            // Crawl in slowly, still full size: it must read as the cell sliding into the body,
-            // not as it shrinking away on the spot. The player can still steer it - the stick
-            // direction is added on top, so the cell drifts off course while being swallowed.
             if (rb != null)
             {
                 Vector2 steer = owner != null ? owner.MoveInput * (owner.MoveSpeed * self.MoveSpeedFactor) : Vector2.zero;
                 rb.linearVelocity = direction * mergeCrawlSpeed + steer * mergeSteer;
             }
 
-            // Draw it above the keeper, otherwise it vanishes behind the big body while sliding in.
             if (shell != null)
             {
                 SpriteRenderer keeperShell = mergeKeeper.GetComponent<SpriteRenderer>();
@@ -580,10 +512,6 @@ namespace QiuQiu
                 shell.sortingOrder = keeperOrder + 2;
             }
 
-            // Covered = eaten. Full cover means the small body fits inside the big one, i.e. its
-            // centre is at most (keeperRadius - ownRadius) away. When the two are nearly the same
-            // size that distance is close to zero, so a fraction of the keeper radius is used as a
-            // floor - otherwise equal halves could never finish merging.
             float covered = Mathf.Max(mergeKeeper.Radius - self.Radius, mergeKeeper.Radius * mergeEatDepth);
             if (distance > covered)
             {
@@ -598,13 +526,10 @@ namespace QiuQiu
 
             if (finished != null)
             {
-                finished();   // PlayerMerge drops this cell from the roster
+                finished();
             }
         }
 
-        // Merge easing. Pow(t, 2) starts almost flat and then rushes the last frames, which is
-        // what made the merge look like a snap. These curves both start and end with zero slope:
-        // strength 1 = constant speed, 2 = smoothstep (default), 3 = smootherstep.
         private static float MergeEase(float t, float strength)
         {
             t = Mathf.Clamp01(t);
@@ -619,9 +544,6 @@ namespace QiuQiu
             return Mathf.Lerp(smooth, smoother, Mathf.Clamp01(s - 2f));
         }
 
-        // Called by PlayerMerge while two cells are not allowed to merge yet: the solid-body
-        // separation from Agar. The merge layer decides how far, this component performs it,
-        // so the Rigidbody still only has one writer.
         public bool Nudge(Vector2 delta)        {
             if (state != CellMotionState.Normal && state != CellMotionState.Following)
             {
@@ -638,7 +560,6 @@ namespace QiuQiu
             return true;
         }
 
-        // ---- helpers --------------------------------------------------------------------
 
         private void ApplyRadius(float radius)
         {

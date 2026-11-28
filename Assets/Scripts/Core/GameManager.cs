@@ -51,9 +51,6 @@ namespace QiuQiu
         [SerializeField] private bool freezeOnGameOver = true;
         [SerializeField] private bool muteAudioOnGameOver;
 
-        // Everything below is applied to the player cells at runtime, so this is the one place
-        // to tune the game feel. Values are pushed on Start and whenever you press
-        // "Apply Tuning Now" (or edit the field while the game is running).
         [Header("Tuning: eating")]
         [Tooltip("How much of the smaller ball must be inside the bigger one before it is eaten. 0.97 = almost fully covered.")]
         [SerializeField, Range(0.5f, 1f)] private float swallowCoverage = 0.97f;
@@ -108,18 +105,15 @@ namespace QiuQiu
 
         public RoundState State { get; private set; }
 
-        // Play Respawn
         public bool IsPlayerRespawning { get; private set; }
 
         public float RespawnTimeLeft { get; private set; }
 
-        // Result
         public float PeakMass { get; private set; }
         public float FinalMass { get; private set; }
         public int FinalRank { get; private set; } = 1;
         public int TotalParticipants { get; private set; } = 1;
 
-        // fixed for the whole round: the player plus every AI slot, dead or alive
         public int ParticipantCount { get; private set; } = 1;
 
         public bool IsRunning { get { return State == RoundState.Playing; } }
@@ -149,7 +143,7 @@ namespace QiuQiu
             }
 
             if (resultPanel == null)
-            {   //Exclude/Include    > check only active/Both(+ not active) GameObject
+            {
                 resultPanel = FindFirstObjectByType<RoundResultPanel>(FindObjectsInactive.Include);
             }
         }
@@ -186,8 +180,6 @@ namespace QiuQiu
             ApplyTuning();
         }
 
-        // Pushes the Inspector numbers into the runtime components. Called once on Start, and
-        // again from the context menu so you can tweak while the game is playing.
         [ContextMenu("Apply Tuning Now")]
         public void ApplyTuning()
         {
@@ -268,7 +260,6 @@ namespace QiuQiu
             }
         }
 
-        // make AI snowballing Speed be down
         private void UpdateAiMassCap()
         {
             if (player == null || !player.isActiveAndEnabled)
@@ -282,7 +273,6 @@ namespace QiuQiu
 
         private void TickPlayerState()
         {
-            // for main ball die
             if (player == null || !player.isActiveAndEnabled)
             {
                 player = PlayerController.Active;
@@ -338,7 +328,7 @@ namespace QiuQiu
                 return;
             }
 
-            if (IsPlayerRespawning) return;   
+            if (IsPlayerRespawning) return;
 
             BeginPlayerRespawn(killer);
         }
@@ -352,7 +342,7 @@ namespace QiuQiu
                 float mass = player.TotalMass;
                 if (mass > 0f) FinalMass = mass;
                 if (player.MainBall != null)
-                {   //for main ball fit other it self
+                {
                     lastDeathPosition = player.MainBall.transform.position;
                 }
             }
@@ -372,7 +362,6 @@ namespace QiuQiu
 
             if (sprite == null)
             {
-                // nothing to draw a ball with: retry instead of leaving the player dead forever
                 if (!loggedMissingSprite)
                 {
                     loggedMissingSprite = true;
@@ -393,7 +382,7 @@ namespace QiuQiu
 
             if (controller == null)
             {
-                controller = PlayerController.EnsureExists(); //sure play live
+                controller = PlayerController.EnsureExists();
             }
 
             Vector3 spawn = FindSafeSpawnPoint(playerRespawnMass, lastDeathPosition);
@@ -410,7 +399,6 @@ namespace QiuQiu
             ball.SetInvulnerable(respawnInvulnerability);
         }
 
-        // the sprite can live on the serialized field, on a live ball, or nowhere at all
         private Sprite ResolveBallSprite()
         {
             if (playerSprite != null)
@@ -451,7 +439,6 @@ namespace QiuQiu
             float safeRadius = Mathf.Max(0.5f, respawnSafeRadius);
             var all = SizeController.Registry;
 
-            //12 time
             for (int attempt = 0; attempt < Mathf.Max(1, respawnPlacementAttempts); attempt++)
             {
                 Vector3 candidate = fallback;
@@ -492,7 +479,6 @@ namespace QiuQiu
 
         public int AliveAiCount
         {
-            // logical bots, not cells: one bot split into 16 cells still occupies one slot
             get { return ScoreBoard.AliveBots(aiTeam); }
         }
 
@@ -534,18 +520,18 @@ namespace QiuQiu
 
             position = FindSafeSpawnPoint(mass, position);
 
-            string aiName = $"AI_{aiSpawnCounter:00}"; // for check
+            string aiName = $"AI_{aiSpawnCounter:00}";
             int botId = aiSpawnCounter;
             aiSpawnCounter++;
 
             var go = BallFactory.CreateBall(aiName, position, mass, sprite, color, aiTeam);
 
             var ai = go.AddComponent<AIController>();
-            
+
             ai.ApplyRandomProfile(UnityEngine.Random.Range(0.9f, 1.25f), UnityEngine.Random.Range(0.85f, 1.15f));
 
             var size = go.GetComponent<SizeController>();
-            size.BotId = botId;      // the id the leaderboard and the respawn count use
+            size.BotId = botId;
             size.SetInvulnerable(aiSpawnInvulnerability);
 
             return size;
@@ -568,7 +554,6 @@ namespace QiuQiu
                 player = PlayerController.Active;
             }
 
-            // // for wait respown  TotalMass is die before
             if (player != null)
             {
                 float mass = player.TotalMass;

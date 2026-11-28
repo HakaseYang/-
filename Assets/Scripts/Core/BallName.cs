@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // 球里面那行字（网页版 agar.io 就是把名字写在球心），只做显示，不参与任何玩法判定。
     public class BallName : MonoBehaviour
     {
         [SerializeField] private string displayName = "";
@@ -35,7 +34,6 @@ namespace QiuQiu
                 return;
             }
 
-            // 球本身会随质量放大，这里反向补偿，让名字的世界尺寸保持不变
             float scale = Mathf.Max(0.01f, transform.localScale.x);
             label.transform.localScale = Vector3.one / scale;
             labelRenderer.sortingOrder = SizeController.SortingOrderForRadius(size.Radius) + 40;
@@ -62,7 +60,6 @@ namespace QiuQiu
 
             if (label.font == null)
             {
-                // no built-in font in this build: drop the label instead of throwing
                 Destroy(go);
                 return;
             }

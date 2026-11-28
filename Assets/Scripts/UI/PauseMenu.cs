@@ -43,7 +43,6 @@ namespace QiuQiu
 
         private void Update()
         {
-            //for test
             if (Keyboard.current == null || !Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 return;

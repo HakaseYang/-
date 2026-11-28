@@ -3,10 +3,9 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    
+
     public static class FoodPool
     {
-        //save the item in (Stack)
         private static readonly Stack<Edible> free = new Stack<Edible>(512);
         private static Transform root;
         private static int created;
@@ -24,7 +23,6 @@ namespace QiuQiu
             root = container;
         }
 
-        // for sure have Root
         private static Transform Root
         {
             get
@@ -62,13 +60,11 @@ namespace QiuQiu
                 return;
             }
 
-            // first SetActive to sure OnDisable work normal
             edible.gameObject.SetActive(false);
             edible.transform.SetParent(Root, false);
             free.Push(edible);
         }
 
-        //for start add 500 
         public static void Prewarm(int count)
         {
             while (created < count)

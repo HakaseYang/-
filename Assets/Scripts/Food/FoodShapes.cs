@@ -2,9 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // A map covered in identical circles gets tiring to look at, so food picks one of a few
-    // silhouettes instead. They are drawn once at start-up, all white with an alpha mask, so the
-    // SpriteRenderer colour still tints them like the old round sprite did.
     public static class FoodShapes
     {
         private const int TextureSize = 64;
@@ -88,7 +85,6 @@ namespace QiuQiu
             return Sprite.Create(texture, new Rect(0f, 0f, TextureSize, TextureSize), new Vector2(0.5f, 0.5f), TextureSize);
         }
 
-        // sides = 0 means "circle"; a star is a 2*points polygon with alternating radii.
         private static Vector2[] BuildPolygon(int sides, float rotationDegrees, bool star)
         {
             if (sides <= 0)

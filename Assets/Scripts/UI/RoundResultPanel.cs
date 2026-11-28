@@ -31,7 +31,6 @@ namespace QiuQiu
                 gameManager = FindFirstObjectByType<GameManager>();
             }
 
-            //avoid two clike(even) happen
             if (restartButton != null && restartButton.onClick.GetPersistentEventCount() == 0)
             {
                 restartButton.onClick.AddListener(Restart);
@@ -107,7 +106,7 @@ namespace QiuQiu
             if (AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlayUIClick();
-                AudioManager.Instance.PlayBGM();    //for next play have BGM
+                AudioManager.Instance.PlayBGM();
             }
 
             SceneFlow.Reload();

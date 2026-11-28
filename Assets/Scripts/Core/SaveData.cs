@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // writes player progress to disk
     public static class SaveData
     {
         private const string BestMassKey = "QiuQiu.BestMass";

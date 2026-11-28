@@ -4,26 +4,16 @@ using UnityEngine.EventSystems;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// A UI button that reports "held" instead of "clicked".
-    ///
-    /// Button.onClick only fires once, on release, so holding the spit button on a phone
-    /// produced exactly one pellet. This component watches the pointer instead and keeps
-    /// InputReader's mobile spit state on for as long as a finger is on the button.
-    /// Several fingers are tracked, so the joystick and the spit button work together.
-    /// </summary>
     [DisallowMultipleComponent]
     public class MobileInputButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
     {
         [Tooltip("Sending input to the spit channel. Only spit is wired to the mobile state right now.")]
         [SerializeField] private bool isSpitButton = true;
 
-        // pointer ids currently pressing this button
         private readonly HashSet<int> pressing = new HashSet<int>();
 
         private void OnEnable()
         {
-            // a disabled button must never leave the game spitting forever
             Clear();
         }
 
@@ -55,7 +45,6 @@ namespace QiuQiu
             }
             else
             {
-                // split is a one shot: queue it for the next Update
                 InputReader.RequestSplitTap();
             }
         }
@@ -73,7 +62,6 @@ namespace QiuQiu
             }
         }
 
-        // the finger slid off the button: treat it as released, otherwise it never lets go
         public void OnPointerExit(PointerEventData eventData)
         {
             if (eventData != null)

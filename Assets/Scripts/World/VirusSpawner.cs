@@ -3,8 +3,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Keeps the map stocked with viruses and builds the green spiky sprite at runtime,
-    // so the project needs no new art asset.
     [DisallowMultipleComponent]
     public class VirusSpawner : MonoBehaviour
     {
@@ -61,14 +59,11 @@ namespace QiuQiu
 
         private void Start()
         {
-            // A match opens on an empty floor; viruses trickle in afterwards, one at a time.
             nextRespawnTime = Time.time + RandomDelay();
         }
 
         private void Update()
         {
-            // One virus per slot, with a 2-4 second gap after the previous one vanished, so the
-            // map grows into the cap instead of being pre-filled.
             int wanted = Mathf.Clamp(virusCount, 0, Mathf.Max(0, maxVirus));
 
             if (Virus.ActiveCount >= Mathf.Min(wanted, maxVirus))
@@ -107,8 +102,6 @@ namespace QiuQiu
                 return false;
             }
 
-            // The fed-virus path already checked the cap; the normal refill has to check it as
-            // well, otherwise a changed virusCount can push the map past maxVirus.
             if (Virus.ActiveCount >= maxVirus)
             {
                 return false;
@@ -129,7 +122,6 @@ namespace QiuQiu
             return false;
         }
 
-        // Called by a fed virus: a new virus flies off in the given direction.
         public Virus SpawnFrom(Virus source, Vector2 direction, float speed)
         {
             if (source == null)
@@ -139,7 +131,7 @@ namespace QiuQiu
 
             if (Virus.ActiveCount >= maxVirus)
             {
-                return null;   // cap reached, no more viruses
+                return null;
             }
 
             Vector2 dir = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector2.up;
@@ -185,7 +177,7 @@ namespace QiuQiu
 
             CircleCollider2D col = go.AddComponent<CircleCollider2D>();
             col.radius = 0.5f;
-            col.isTrigger = true;   // a virus never pushes a ball around
+            col.isTrigger = true;
 
             Virus virus = go.AddComponent<Virus>();
             virus.Configure(virusMass, radiusScale);
@@ -238,7 +230,6 @@ namespace QiuQiu
             return true;
         }
 
-        // spiky ring, drawn once. Cheap: it is the same sprite for every virus.
         private Sprite BuildStarSprite()
         {
             int size = Mathf.Clamp(textureSize, 32, 512);

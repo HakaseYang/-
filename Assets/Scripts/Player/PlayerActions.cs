@@ -3,11 +3,9 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // split and spit rules: cooldowns, mass math, where the new ball appears.
     public class PlayerActions
     {
         private PlayerRoster roster;
-        //Generic Delegate (get black SizeController)
         private System.Func<string, Vector3, float, Sprite, Color, SizeController> spawnBall;
         private PlayerController.PlayerTuning tuning;
         private string ballPrefix = "Player";
@@ -24,9 +22,6 @@ namespace QiuQiu
             this.ballPrefix = ballPrefix;
         }
 
-        // Agar.io split: every cell that is big enough splits in two at once, not just the
-        // biggest one. Once the player is past half of the cell limit only the biggest cells
-        // split, and only as many as the limit still allows.
         public List<SizeController> TrySplit(Vector2 aim, float centerAmount)
         {
             if (Time.time < nextSplitTime)
@@ -56,7 +51,7 @@ namespace QiuQiu
                 }
                 if (ball.Mass <= tuning.splitMinMass)
                 {
-                    continue;   // too small to split
+                    continue;
                 }
                 candidates.Add(ball);
             }
@@ -70,8 +65,8 @@ namespace QiuQiu
             candidates.Sort((a, b) => b.Mass.CompareTo(a.Mass));
 
             int allowed = roster.Count > tuning.maxBallCount / 2
-                ? Mathf.Max(0, tuning.maxBallCount - roster.Count + 1)   // only the big ones
-                : candidates.Count;                                      // everyone splits
+                ? Mathf.Max(0, tuning.maxBallCount - roster.Count + 1)
+                : candidates.Count;
 
             allowed = Mathf.Min(allowed, Mathf.Min(candidates.Count, room));
             if (allowed <= 0)
@@ -97,19 +92,14 @@ namespace QiuQiu
                     continue;
                 }
 
-                float newMass = source.Mass * tuning.splitMassRatio;   // half, not a copy
+                float newMass = source.Mass * tuning.splitMassRatio;
                 if (newMass <= 0f)
                 {
                     continue;
                 }
 
-                // halve first, so the parent is already the smaller size while the piece
                 source.SetMass(source.Mass - newMass);
 
-                // the piece is born in the middle of the body; its motion component then slides
-                // it out while it grows, so you can watch it leave the parent.
-                // The distance comes from both radii, not from a fixed world gap: a big cell
-                // throws its piece farther than a small one.
                 Vector3 origin = source.transform.position;
                 float splitRadius = source.Radius * Mathf.Sqrt(tuning.splitMassRatio);
                 float distance = (source.Radius + splitRadius) * tuning.splitDistanceMultiplier;
@@ -119,15 +109,13 @@ namespace QiuQiu
 
                 if (newBall == null)
                 {
-                    source.SetMass(source.Mass + newMass);   // put the mass back, nothing happened
+                    source.SetMass(source.Mass + newMass);
                     continue;
                 }
 
                 PlayerCellMotion motion = newBall.GetComponent<PlayerCellMotion>();
                 if (motion != null)
                 {
-                    // impulse scales with the group's own speed, so a heavy group does not get
-                    // the same absolute kick as a light one
                     float groupSpeed = tuning.moveSpeed *
                         (roster.Main != null ? roster.Main.MoveSpeedFactor : 1f);
                     float impulse = groupSpeed * tuning.splitImpulseFactor * GamePacing.SplitLaunch;
@@ -148,8 +136,6 @@ namespace QiuQiu
             return touched;
         }
 
-        // Agar ejects from EVERY cell at once: 16 pieces means 16 pellets, one per body part.
-        // Returns how many pieces were spat out (0 = nothing happened).
         public int TrySpit(Vector2 aim, float centerAmount)
         {
             if (Time.time < nextSpitTime) return 0;
@@ -168,7 +154,6 @@ namespace QiuQiu
                     continue;
                 }
 
-                // each cell pays for its own pellet, so a thin cell simply can not spit
                 if (!ball.TryConsumeMass(tuning.spitMassCost, tuning.minMassAfterSpit))
                 {
                     continue;
@@ -178,13 +163,8 @@ namespace QiuQiu
                 Sprite sprite = shell != null ? shell.sprite : null;
                 Color color = shell != null ? shell.color : Color.cyan;
 
-                // Spawn outside the body: body radius + the pellet's own radius + the gap.
-                // Spawning at body radius only buries half of the pellet inside the ball, and
-                // no arm delay can hide that.
                 Vector2 cellDir = CellDirection(dir, centroid, ball.transform.position, roster.Count, centerAmount);
 
-                // The pellet keeps its full size and full value for everyone else, but its own
-                // spitter only gets part of the cost back, so spit-and-swallow can not print mass.
                 float sporeMass = tuning.spitFoodMass;
                 float payback = tuning.spitMassCost * tuning.spitReturnRatio;
                 float sporeRadius = BallFactory.SporeRadius(sporeMass);
@@ -201,7 +181,6 @@ namespace QiuQiu
 
             if (ejected == 0)
             {
-                // nothing could spit: back off for a moment instead of re-testing every frame
                 nextSpitTime = Time.time + Mathf.Max(0.05f, tuning.spitRetryInterval);
                 return 0;
             }
@@ -215,7 +194,6 @@ namespace QiuQiu
             return facing.sqrMagnitude > 0.0001f ? facing.normalized : Vector2.right;
         }
 
-        // middle of the whole group: the centre spit aims every cell at this point
         private Vector2 Centroid()
         {
             if (roster == null || roster.Count == 0)
@@ -241,10 +219,6 @@ namespace QiuQiu
             return n > 0 ? sum / n : Vector2.zero;
         }
 
-        // How each cell aims when it spits, driven by how far the stick is pushed in:
-        //   stick pushed out  -> straight: every cell fires along the aim direction
-        //   halfway           -> the streams start bending toward the middle and cross
-        //   stick pushed in   -> centre spit: every cell fires at the middle of the group
         public static Vector2 CellDirection(Vector2 aim, Vector2 centroid, Vector2 cellPosition,
             int cellCount, float centerAmount)
         {
@@ -261,8 +235,6 @@ namespace QiuQiu
                 return dir;
             }
 
-            // Sweep the angle instead of lerping vectors: two cells sitting side by side would
-            // otherwise have their blend collapse to zero length and the pellet would snap.
             float fromDeg = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
             Vector2 inward = (-offset).normalized;
             float toDeg = Mathf.Atan2(inward.y, inward.x) * Mathf.Rad2Deg;
@@ -272,7 +244,6 @@ namespace QiuQiu
             return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
         }
 
-        //make spit food more ealy to check and see
         private static Color Lighten(Color color)
         {
             return new Color(

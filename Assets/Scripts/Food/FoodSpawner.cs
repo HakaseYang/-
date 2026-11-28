@@ -5,11 +5,9 @@ namespace QiuQiu
     public class FoodSpawner : MonoBehaviour
     {
         [Header("Area")]
-        [SerializeField] private float borderMargin = 1f;   // Minimum distance from the food center to the site boundary
+        [SerializeField] private float borderMargin = 1f;
         [Header("Count")]
         [SerializeField] private int maxFoodCount = 500;
-        // Phones get a smaller plate: every pellet is a full GameObject with a body and a
-        // collider, and a big board of them is what makes low-end devices run out of memory.
         [SerializeField] private int mobileFoodCap = 400;
         [SerializeField] private bool fillOnStart = true;
         [SerializeField] private float checkInterval = 0.5f;
@@ -55,16 +53,15 @@ namespace QiuQiu
                 }
             }
 
-            nextCheckTime = Time.time + checkInterval; //avoid add food again
+            nextCheckTime = Time.time + checkInterval;
 
-            
+
             if (foodParent != null && !foodParent.gameObject.activeInHierarchy)
             {
                 Debug.LogWarning("[FoodSpawner] foodParent is inactive, food will be invisible");
             }
 
             FoodPool.UseRoot(foodParent);
-            //do 500 in pool
             FoodPool.Prewarm(maxFoodCount);
 
             if (!fillOnStart)
@@ -78,7 +75,7 @@ namespace QiuQiu
                     break;
                 }
 
-                if (!SpawnOne())    //SetActive(500 food)
+                if (!SpawnOne())
                 {
                     break;
                 }
@@ -94,7 +91,7 @@ namespace QiuQiu
 
             nextCheckTime = Time.time + checkInterval;
 
-            int missing = maxFoodCount - Edible.ActiveCount; //now food 
+            int missing = maxFoodCount - Edible.ActiveCount;
             if (missing <= 0)
             {
                 return;
@@ -109,8 +106,6 @@ namespace QiuQiu
 
         private bool SpawnOne()
         {
-            // A single sprite for every pellet made the floor read as a dotted grid, so each
-            // spawn picks one of the generated silhouettes (circle / triangle / square / ...).
             Sprite shape = FoodShapes.Pick();
 
             if (shape == null && foodSprite == null)
@@ -118,7 +113,6 @@ namespace QiuQiu
                 return false;
             }
 
-            //try 8 time to place food
             for (int attempt = 0; attempt < placementAttempts; attempt++)
             {
                 if (!TryPickPoint(out Vector3 point))
@@ -140,7 +134,7 @@ namespace QiuQiu
                 return true;
             }
 
-            return false; //8 time not have > false
+            return false;
         }
 
         private bool TryPickPoint(out Vector3 point)
@@ -169,7 +163,6 @@ namespace QiuQiu
                 return false;
             }
 
-            //All play sub-smalland nurmal ball 
             var balls = player.Balls;
             for (int i = 0; i < balls.Count; i++)
             {

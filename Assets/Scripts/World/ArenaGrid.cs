@@ -3,11 +3,6 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    /// <summary>
-    /// Draws the "graph paper" grid behind the arena, the way the classic agar.io map looks.
-    /// One procedural mesh (a quad per line) is cheaper than a SpriteRenderer per line,
-    /// and it scrolls with the world because it is plain world geometry.
-    /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(ArenaManager))]
     public class ArenaGrid : MonoBehaviour
@@ -66,7 +61,6 @@ namespace QiuQiu
             RebuildWithColor(lineColorOnPaper, lineColorOnPaper);
         }
 
-        /// <summary>Rebuilds the whole grid; call it after changing cellSize at runtime.</summary>
         [ContextMenu("Rebuild Grid")]
         public void Build()
         {
@@ -81,7 +75,6 @@ namespace QiuQiu
 
             EnsureRenderer();
 
-            // one extra cell on each side so the grid never ends inside the camera view
             float minX = center.x - half.x - cellSize;
             float maxX = center.x + half.x + cellSize;
             float minY = center.y - half.y - cellSize;
@@ -177,8 +170,6 @@ namespace QiuQiu
             Shader shader = Shader.Find("Sprites/Default");
             if (shader == null)
             {
-                // A build that stripped every sprite shader cannot draw the grid at all; leaving
-                // the object without a renderer is better than throwing inside Awake().
                 Debug.LogWarning("[ArenaGrid] Sprites/Default not available, grid skipped.");
                 Destroy(child);
                 return;

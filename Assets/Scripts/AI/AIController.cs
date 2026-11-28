@@ -47,22 +47,21 @@ namespace QiuQiu
         [SerializeField] private float virusAvoidRadius = 5f;
         [SerializeField] private float virusAvoidWeight = 2f;
 
-        
+
         private struct ScanResult
         {
             public SizeController nearestThreat;
-            public float threatGap;          // surface distance, negative once the bodies touch
+            public float threatGap;
             public SizeController nearestPrey;
             public float preyGap;
             public Edible nearestFood;
-            public float foodSqr;            // food is picked by center distance: no sqrt per candidate
+            public float foodSqr;
             public float foodGap;
         }
 
         private Rigidbody2D rb;
         private SizeController self;
 
-        // 场景里的 AI 从这里开始拿编号，避开 GameManager 自己分配的 0..N
         private static int s_NextSceneBotId = 100;
         private ContactFilter2D filter;
         private Collider2D[] scanBuffer;
@@ -75,12 +74,10 @@ namespace QiuQiu
         private float nextWanderChangeTime;
         private float nextScanTime;
 
-        // virus burst: the cell is thrown outwards and ignores its own pathing for a moment
         private float burstEndTime;
         private float burstStartTime;
         private Vector2 burstVelocity;
 
-        // Called by Virus when this cell was spawned by a burst.
         public void BeginBurst(Vector2 velocity, float duration)
         {
             burstVelocity = velocity;
@@ -108,9 +105,8 @@ namespace QiuQiu
             }
         }
 
-        // make Ai different
         public void ApplyRandomProfile(float speedScale, float scanScale)
-        {   //avoid /0
+        {
             moveSpeed = Mathf.Max(0.1f, moveSpeed * Mathf.Max(0.1f, speedScale));
             scanRadius = Mathf.Clamp(scanRadius * Mathf.Max(0.1f, scanScale), 3f, 20f);
         }
@@ -120,8 +116,6 @@ namespace QiuQiu
             rb = GetComponent<Rigidbody2D>();
             self = GetComponent<SizeController>();
 
-            // 场景里手工摆放的 AI 没有走 GameManager 的生成流程，
-            // 这里补一个唯一编号，否则它们会全部算成同一个参赛者。
             if (self != null && self.BotId < 0)
             {
                 self.BotId = s_NextSceneBotId++;
@@ -129,19 +123,18 @@ namespace QiuQiu
 
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
-            rb.interpolation = RigidbodyInterpolation2D.Interpolate; //Smooth
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
             scanBuffer = new Collider2D[scanBufferSize];
 
             filter = new ContactFilter2D
             {
-                useTriggers = true,    
-                useLayerMask = scanLayerMask.value != ~0,//(!(` = Negate > 1)) = No layer filtering
+                useTriggers = true,
+                useLayerMask = scanLayerMask.value != ~0,
                 layerMask = scanLayerMask
             };
 
-            PickNewWanderDirection(); //Initial
-            //make 10 AI in different time scarn
+            PickNewWanderDirection();
             nextScanTime = Time.time + Random.Range(0f, Mathf.Max(0.01f, scanInterval));
         }
 
@@ -152,8 +145,6 @@ namespace QiuQiu
                 return;
             }
 
-            // A virus just threw this cell outwards: it keeps flying until the push fades, and
-            // only then does normal pathing resume.
             if (Time.time < burstEndTime)
             {
                 TickBurst();
@@ -166,12 +157,11 @@ namespace QiuQiu
                 Scan();
             }
 
-            Vector2 desired = DecideDirection(); //go where
-            desired = ApplyBorderAvoidance(desired); //in border?
-            desired = ApplyVirusAvoidance(desired);  //big ball: do not pop a virus by accident
-            ApplyMovement(desired); //go
+            Vector2 desired = DecideDirection();
+            desired = ApplyBorderAvoidance(desired);
+            desired = ApplyVirusAvoidance(desired);
+            ApplyMovement(desired);
 
-            //for ball go back to area(if go out)
             if (ArenaManager.Instance != null)
             {
                 ArenaManager.Instance.Constrain(rb, self.Radius);
@@ -186,11 +176,10 @@ namespace QiuQiu
 
             if (state == AIState.Wander && Time.time >= nextWanderChangeTime)
             {
-                PickNewWanderDirection();   //turn direction
+                PickNewWanderDirection();
             }
         }
 
-        //  over the buffer: fills the threat list and the three nearest
         private ScanResult LookAround()
         {
             var result = new ScanResult
@@ -201,8 +190,6 @@ namespace QiuQiu
             };
 
             threats.Clear();
-            //check circle have? other Collider2D (AI/Player)
-            // a big body would fill a fixed circle: reach out from its own edge
             float reach = scanRadius + self.Radius;
             int count = Physics2D.OverlapCircle(rb.position, reach, filter, scanBuffer);
             for (int i = 0; i < count; i++)
@@ -220,11 +207,11 @@ namespace QiuQiu
 
                     if (other.CanEat(self))
                     {
-                        if (!threats.Contains(other))   //to sure A ball only will  hit once.
+                        if (!threats.Contains(other))
                         {
                             threats.Add(other);
-                        }                            
-                        float gap = Mathf.Sqrt(sqrDistance) - other.Radius - self.Radius;  // edge to edge, measured from my own surface
+                        }
+                        float gap = Mathf.Sqrt(sqrDistance) - other.Radius - self.Radius;
                         if (gap < result.threatGap)
                         {
                             result.threatGap = gap;
@@ -248,7 +235,7 @@ namespace QiuQiu
                 if (food != null)
                 {
                     float sqrDistance = ((Vector2)food.transform.position - rb.position).sqrMagnitude;
-                    if (sqrDistance < result.foodSqr)   // food :center distance is enough
+                    if (sqrDistance < result.foodSqr)
                     {
                         result.foodSqr = sqrDistance;
                         result.nearestFood = food;
@@ -257,7 +244,7 @@ namespace QiuQiu
             }
 
             result.foodGap = result.nearestFood != null
-                ? Mathf.Sqrt(result.foodSqr) - result.nearestFood.Radius - self.Radius   
+                ? Mathf.Sqrt(result.foodSqr) - result.nearestFood.Radius - self.Radius
                 : float.MaxValue;
 
             return result;
@@ -269,14 +256,12 @@ namespace QiuQiu
             bool hasPrey = result.nearestPrey != null;
             bool hasFood = result.nearestFood != null;
 
-            //run out Threat
             if (hasThreat && result.threatGap <= fleeRadius)
             {
                 EnterFlee();
                 return;
             }
 
-            // if Prey close more Threat,run
             if (hasThreat && (hasPrey || hasFood) &&
                 result.threatGap <= Mathf.Min(result.preyGap, result.foodGap))
             {
@@ -322,7 +307,6 @@ namespace QiuQiu
             chaseTarget = prey.transform;
         }
 
-        // stop buzzing around a target 
         private void HandleArrivedTarget()
         {
             if (state != AIState.Chase || chaseTarget == null)
@@ -336,7 +320,6 @@ namespace QiuQiu
                 return;
             }
 
-            //Arrived Target
             chaseTarget = null;
             if (threats.Count == 0)
             {
@@ -372,7 +355,6 @@ namespace QiuQiu
             }
         }
 
-        // away  every threat, nearest threat weighed heaviest
         private Vector2 FleeDirection()
         {
             Vector2 away = Vector2.zero;
@@ -388,7 +370,6 @@ namespace QiuQiu
                 away += offset.normalized * (1f / (gap * gap));
             }
 
-            //two threat close,choice one way run
             if (away.sqrMagnitude < 0.0001f)
             {
                 return Random.insideUnitCircle.normalized;
@@ -431,7 +412,6 @@ namespace QiuQiu
                 Mathf.Max(1f, acceleration) * GamePacing.AiAcceleration * Time.fixedDeltaTime);
         }
 
-        // soft border
         private Vector2 ApplyBorderAvoidance(Vector2 direction)
         {
             ArenaManager arena = ArenaManager.Instance;
@@ -454,8 +434,6 @@ namespace QiuQiu
             return blended.normalized;
         }
 
-        // A ball big enough to pop a virus should not drive into one unless it is chasing
-        // something, so only big cells get this nudge. Small cells happily pass behind one.
         private Vector2 ApplyVirusAvoidance(Vector2 direction)
         {
             if (!avoidViruses || self == null)
@@ -480,7 +458,6 @@ namespace QiuQiu
                     continue;
                 }
 
-                // too small to pop it: the virus is not dangerous, ignore it
                 if (self.Mass <= virus.Mass)
                 {
                     continue;
@@ -511,27 +488,22 @@ namespace QiuQiu
             if (candidate.sqrMagnitude < 0.0001f) candidate = Vector2.right;
 
             wanderDirection = candidate.normalized;
-            //make all AI different time turn direct
             nextWanderChangeTime = Time.time + wanderChangeInterval * Random.Range(0.7f, 1.3f);
         }
-        
-        //for check to see
+
         private void OnDrawGizmosSelected()
         {
-            //yellow:Scanning radius
             SizeController body = self != null ? self : GetComponent<SizeController>();
             float reach = scanRadius + (body != null ? body.Radius : 0f);
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(transform.position, reach);
 
-            //red:run Radius
             Gizmos.color = new Color(1f, 0.4f, 0.4f, 0.9f);
             Gizmos.DrawWireSphere(transform.position, fleeRadius);
 
             if (chaseTarget != null)
             {
 
-                //green; to target
                 Gizmos.color = Color.green;
                 Gizmos.DrawLine(transform.position, chaseTarget.position);
             }

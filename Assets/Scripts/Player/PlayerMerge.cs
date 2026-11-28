@@ -3,24 +3,15 @@ using UnityEngine;
 
 namespace QiuQiu
 {
-    // Decides WHO may merge and WHEN, and nothing else.
-    //
-    // It used to also move the Rigidbody (MovePosition), change the visual scale and push
-    // overlapping cells apart by writing body.position directly. That is now the job of
-    // PlayerCellMotion: this class only says "these two may melt together" or "these two are
-    // not allowed yet, separate them", and the cell itself does the moving.
     public class PlayerMerge
     {
         private PlayerRoster roster;
         private PlayerController.PlayerTuning tuning;
 
-        // a ball may merge again at this time; 0 means "right away"
         private readonly Dictionary<SizeController, float> readyAt = new Dictionary<SizeController, float>();
 
-        // balls that are being pulled in right now
         private readonly List<Job> jobs = new List<Job>();
 
-        // used to tell "taken by an enemy" apart from "merged into our own ball"
         private readonly HashSet<SizeController> merging = new HashSet<SizeController>();
 
         private sealed class Job
@@ -47,9 +38,6 @@ namespace QiuQiu
             }
         }
 
-        // a fresh split ball need wait cooldown before it can join again.
-        // The wait is not a fixed number: a heavy cell has to wait longer, which is the
-        // Agar.io idea (merge timer grows with the cell).
         public void MarkSplit(SizeController ball)
         {
             if (ball == null)
@@ -86,15 +74,15 @@ namespace QiuQiu
             {
                 return false;
             }
-            if (merging.Contains(ball)) //when  mergeing
+            if (merging.Contains(ball))
             {
                 return false;
             }
-            if (!readyAt.TryGetValue(ball, out float at))      //not have Register
+            if (!readyAt.TryGetValue(ball, out float at))
             {
                 return false;
             }
-            return Time.time >= at; //can
+            return Time.time >= at;
         }
 
         public bool IsMerging(SizeController ball)
@@ -102,10 +90,9 @@ namespace QiuQiu
             return ball != null && merging.Contains(ball);
         }
 
-        // finish the running pull first, then look for a new pair
         public void Tick(float deltaTime)
         {
-            PushApart(deltaTime);   // cells are solid until the cooldown is over
+            PushApart(deltaTime);
             UpdateJobs();
             if (jobs.Count == 0)
             {
@@ -113,11 +100,6 @@ namespace QiuQiu
             }
         }
 
-        // Agar.io makes the cells of one player solid bodies: while they are not allowed
-        // to merge yet, two overlapping cells push each other out of the way instead of
-        // passing through. This is pushAwayCollidingCells() from owenashurst/agar.io-clone
-        // (src/server/map/player.js). The merge layer decides how far, the cell's motion
-        // component performs the move, so the Rigidbody keeps a single writer.
         private void PushApart(float deltaTime)
         {
             if (roster == null || roster.Count < 2 || tuning == null || tuning.pushApartSpeed <= 0f || deltaTime <= 0f)
@@ -143,7 +125,6 @@ namespace QiuQiu
                     PlayerCellMotion motionB = b.GetComponent<PlayerCellMotion>();
                     if (motionB == null || motionB.IsBusy) continue;
 
-                    // both are allowed to melt together, so let them overlap on purpose
                     if (CanMerge(a) && CanMerge(b)) continue;
 
                     Vector2 offset = (Vector2)b.transform.position - (Vector2)a.transform.position;
@@ -151,7 +132,6 @@ namespace QiuQiu
                     float overlap = a.Radius + b.Radius - distance;
                     if (overlap <= 0f) continue;
 
-                    // two cells dropped on the exact same spot still have to separate
                     Vector2 direction = distance > 0.0001f ? offset / distance : Vector2.up;
 
                     float push = Mathf.Min(overlap * 0.5f, maxStep);
@@ -178,7 +158,6 @@ namespace QiuQiu
                     SizeController b = roster.Balls[j];
                     if (!CanMerge(b)) continue;
 
-                    //touch & time >true
                     float contactDistance = a.Radius + b.Radius + tuning.mergeContactTolerance;
                     if (Vector2.Distance(a.transform.position, b.transform.position) > contactDistance) continue;
 
@@ -190,11 +169,9 @@ namespace QiuQiu
 
         private void Begin(SizeController a, SizeController b)
         {
-            // the main ball always keeps itself, a sub ball may not eat it
             SizeController keeper;
             SizeController small;
 
-            //find main ball
             if (a == roster.Main)
             {
                 keeper = a;
@@ -205,7 +182,6 @@ namespace QiuQiu
                 keeper = b;
                 small = a;
             }
-            //see who big
             else if (a.Mass >= b.Mass)
             {
                 keeper = a;
@@ -220,19 +196,15 @@ namespace QiuQiu
             PlayerCellMotion motion = small.GetComponent<PlayerCellMotion>();
             if (motion == null)
             {
-                return;   // no motion owner means nothing can animate the swallow
+                return;
             }
 
             merging.Add(small);
             jobs.Add(new Job { small = small, keeper = keeper });
 
-            // The cell animates itself and hands its mass over frame by frame; when it is fully
-            // swallowed it calls back so the roster can drop it.
             motion.BeginMerge(keeper, tuning.mergeCrawlSpeed, tuning.mergeEatDepth, tuning.mergePullEase, () => Commit(small, keeper));
         }
 
-        // Called when the swallow finished. This is the only place the keeper grows, so the whole
-        // cell's mass arrives in one step at the exact moment it disappears inside the body.
         private void Commit(SizeController small, SizeController keeper)
         {
             jobs.RemoveAll(job => job.small == small);
@@ -245,15 +217,12 @@ namespace QiuQiu
 
             keeper.AddMass(small.Mass);
 
-            // Die fires the Eaten event while "merging" still holds the cell, so
-            // PlayerController knows this was our own merge and not an enemy kill
             small.Die(keeper);
 
             merging.Remove(small);
             readyAt.Remove(small);
         }
 
-        // the keeper may be eaten while the pull runs: give the cell back its body
         private void UpdateJobs()
         {
             for (int i = jobs.Count - 1; i >= 0; i--)
@@ -277,7 +246,6 @@ namespace QiuQiu
                     continue;
                 }
 
-                // finished animation removed itself from the list through Commit()
                 if (!job.small.GetComponent<PlayerCellMotion>().IsMergingInto(job.keeper))
                 {
                     merging.Remove(job.small);
